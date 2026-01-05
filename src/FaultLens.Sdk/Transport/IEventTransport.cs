@@ -5,6 +5,8 @@ namespace FaultLens.Sdk.Transport
 {
     public interface IEventTransport : IDisposable
     {
-        void Send(ErrorEnvelope envelope, Action<DeliveryResult> callback);
+        void Send(ErrorEnvelope envelope, Action<DeliveryResult> callback = null);
+
+        void Flush(TimeSpan timeout);
     }
 }

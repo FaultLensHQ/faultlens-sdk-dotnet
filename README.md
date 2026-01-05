@@ -19,16 +19,29 @@ dotnet add package FaultLens.Sdk
 ```
 ## Initialization
 ```csharp
-var options = new FaultLensOptions(
-    apiKey: "YOUR_PROJECT_API_KEY",
-    environment: "production",
-    release: "1.0.0");
-
 var client = new FaultLensClient(
-    options,
-    new HttpEventTransport(
-        new HttpClient { BaseAddress = options.Endpoint }),
-    new SdkInfo());
+    new FaultLensOptions(
+        apiKey: "YOUR_PROJECT_API_KEY",
+        environment: "production",
+        release: "1.0.0")
+);
+```
+
+## FaultLensOptions
+```csharp
+public sealed class FaultLensOptions
+{
+    public string ApiKey { get; }
+    public Uri Endpoint { get; }
+    public string Environment { get; }
+    public string Release { get; }
+
+    public FaultLensOptions(
+        string apiKey,
+        string environment = "production",
+        string release = null,
+        Uri endpoint = null)
+}
 ```
 
 ## Capturing Exceptions
@@ -40,21 +53,47 @@ try
 }
 catch (Exception ex)
 {
-    client.CaptureException(ex, result =>
+   client.CaptureException(ex);
+}
+```
+
+## With custom fingerprint
+```csharp
+client.CaptureException(
+    exception,
+    fingerprint: "payment-timeout");
+```
+
+## With delivery fallback
+```csharp
+client.CaptureException(
+    exception,
+    callback: result =>
     {
-        if (!result.Success)
+        if (result.Success)
         {
-            Console.WriteLine($"FaultLens delivery failed: {result.ErrorCode}");
+            // Event accepted by FaultLens
+        }
+        else
+        {
+            // Delivery failed
+            Log(result.ErrorCode, result.ErrorMessage);
         }
     });
-}
 ```
 
 ## Capturing Messages
 
-```bash
+```csharp
 client.CaptureMessage("Unexpected state reached");
 ```
+
+```csharp
+client.CaptureMessage(
+    "Cache miss threshold exceeded",
+    fingerprint: "cache-warning");
+```
+
 
 ## Delivery semantics (Authoritative)
 

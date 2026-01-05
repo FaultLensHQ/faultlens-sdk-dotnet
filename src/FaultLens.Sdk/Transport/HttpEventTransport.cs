@@ -1,10 +1,12 @@
 ﻿using FaultLens.Sdk.Envelopes;
 using FaultLens.Sdk.Internal;
 using System;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FaultLens.Sdk.Transport
@@ -15,64 +17,67 @@ namespace FaultLens.Sdk.Transport
 
         private readonly FaultLensOptions _options;
         private readonly RetryPolicy _retryPolicy;
+        private int _inFlight;
 
-        public HttpEventTransport(FaultLensOptions options, RetryPolicy retryPolicy)
+        public HttpEventTransport(FaultLensOptions options)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
-            _retryPolicy = retryPolicy;
+            _retryPolicy = new RetryPolicy(maxRetries: 3, baseDelay: TimeSpan.FromMilliseconds(500));
         }
 
-        public async void Send(ErrorEnvelope envelope, Action<DeliveryResult> callback)
+        public async void Send(ErrorEnvelope envelope, Action<DeliveryResult> callback = null)
         {
             if (envelope == null)
                 return;
 
+            Interlocked.Increment(ref _inFlight);
             _ = SendWithRetryAsync(envelope, callback);
         }
 
-        private async Task SendWithRetryAsync(ErrorEnvelope envelope, Action<DeliveryResult> callback)
+        private async Task SendWithRetryAsync(ErrorEnvelope envelope, Action<DeliveryResult> callback = null)
         {
-            var url = new Uri($"{_options.Endpoint}/api/events/ingest");
-
-            for (var attempt = 0; attempt <= _retryPolicy.MaxRetries; attempt++)
+            try
             {
-                TransportResult result;
-
-                try
+                for (var attempt = 0; attempt <= _retryPolicy.MaxRetries; attempt++)
                 {
-                    var json = JsonSerializer.Serialize(envelope);
-                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+                    TransportResult transportResult;
 
-                    var request = new HttpRequestMessage(HttpMethod.Post, url)
+                    try
                     {
-                        Content = content
-                    };
+                        var request = new HttpRequestMessage(HttpMethod.Post, "/api/events/ingest")
+                        {
+                            Content = new StringContent(JsonSerializer.Serialize(envelope), Encoding.UTF8, "application/json")
+                        };
 
-                    request.Headers.Add("X-API-Key", _options.ApiKey);
+                        request.Headers.Add("X-API-Key", _options.ApiKey);
 
-                    // Fire-and-forget by design
-                    var response = await Client.SendAsync(request);
+                        var response = await Client.SendAsync(request).ConfigureAwait(false);
 
-                    if (response.IsSuccessStatusCode)
+                        if (response.IsSuccessStatusCode)
+                        {
+                            callback?.Invoke(DeliveryResult.Delivered());
+                            return;
+                        }
+
+                        transportResult = MapHttpFailure(response.StatusCode);
+                    }
+                    catch (Exception ex)
                     {
-                        callback?.Invoke(DeliveryResult.Delivered());
+                        transportResult = TransportResult.TransientFailure("network_error", ex.Message);
+                    }
+
+                    if (!transportResult.IsTransient || attempt == _retryPolicy.MaxRetries)
+                    {
+                        callback?.Invoke(DeliveryResult.Failed(transportResult.ErrorCode, transportResult.ErrorMessage));
                         return;
                     }
 
-                    result = MapHttpFailure(response.StatusCode);
+                    await Task.Delay(_retryPolicy.GetDelay(attempt)).ConfigureAwait(false);
                 }
-                catch (Exception ex)
-                {
-                    result = TransportResult.TransientFailure("network_error", ex.Message);
-                }
-
-                if (!result.IsTransient || attempt == _retryPolicy.MaxRetries)
-                {
-                    callback?.Invoke(DeliveryResult.Failed(result.ErrorCode, result.ErrorMessage));
-                    return;
-                }
-
-                await Task.Delay(_retryPolicy.GetDelay(attempt)).ConfigureAwait(false);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _inFlight);
             }
         }
 
@@ -86,9 +91,18 @@ namespace FaultLens.Sdk.Transport
             return TransportResult.PermanentFailure(status.ToString(), "Permanent ingest failure");
         }
 
+        public void Flush(TimeSpan timeout)
+        {
+            var sw = Stopwatch.StartNew();
+            while (Volatile.Read(ref _inFlight) > 0 && sw.Elapsed < timeout)
+            {
+                Thread.Sleep(10);
+            }
+        }
+
         public void Dispose() 
         {
-            Client.Dispose();
+            Flush(TimeSpan.FromSeconds(1));
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System;
+using System.Text.Json.Serialization;
 
 namespace FaultLens.Sdk
 {
@@ -20,11 +21,21 @@ namespace FaultLens.Sdk
             ErrorMessage = errorMessage;
         }
 
-        public static DeliveryResult Delivered()
-            => new DeliveryResult(true, null, null);
+        public static DeliveryResult Delivered() => new DeliveryResult(true, null, null);
 
         public static DeliveryResult Failed(string errorCode, string errorMessage)
-            => new DeliveryResult(false, errorCode, errorMessage);
+        {
+            if (string.IsNullOrWhiteSpace(errorCode))
+                throw new ArgumentException("errorCode is required", nameof(errorCode));
+
+            if (string.IsNullOrWhiteSpace(errorMessage))
+                throw new ArgumentException("errorMessage is required", nameof(errorMessage));
+
+            return new DeliveryResult(
+                success: false,
+                errorCode: errorCode,
+                errorMessage: errorMessage);
+        }
     }
 }
 

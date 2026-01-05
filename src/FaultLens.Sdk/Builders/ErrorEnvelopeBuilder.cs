@@ -25,7 +25,7 @@ namespace FaultLens.Sdk.Builders
 
         public ErrorEnvelopeBuilder WithFingerprint(string fingerprint)
         {
-            _fingerprint = fingerprint;
+            _fingerprint = fingerprint ?? null;
             return this;
         }
 

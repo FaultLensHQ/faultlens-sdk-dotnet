@@ -5,20 +5,26 @@
 		<LangVersion>8.0</LangVersion>
 		<Nullable>enable</Nullable>
 
-		<!-- NuGet metadata -->
+		<!-- Package Identity -->
 		<PackageId>FaultLens.Sdk</PackageId>
-		<Version>1.0.0</Version>
+		<Version>0.1.0</Version>
 		<Authors>FaultLens</Authors>
 		<Company>FaultLens</Company>
-		<Description>Official .NET SDK for FaultLens error monitoring</Description>
-		<PackageTags>faultlens;error-monitoring;logging;observability</PackageTags>
-		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<RepositoryUrl>https://github.com/faultlens/faultlens-sdk-dotnet</RepositoryUrl>
-		<RepositoryType>git</RepositoryType>
 
+		<!-- Package Metadata -->
+		<Description>FaultLens .NET SDK for error tracking and observability.</Description>
+		<PackageTags>faultlens;errors;observability;monitoring</PackageTags>
+		<RepositoryUrl>https://github.com/FaultLensHQ/faultlens-sdk-dotnet</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+
+		<!-- Build Settings -->
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-		<IncludeSymbols>true</IncludeSymbols>
-		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+		<Nullable>disable</Nullable>
+		<ImplicitUsings>disable</ImplicitUsings>
+
+		<!-- Deterministic & Safe -->
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 	</PropertyGroup>
 
 	<ItemGroup>
