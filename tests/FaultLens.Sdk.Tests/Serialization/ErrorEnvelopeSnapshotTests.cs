@@ -1,6 +1,6 @@
 ﻿using FaultLens.Sdk.Envelopes;
-using FluentAssertions;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace FaultLens.Sdk.Tests.Serialization
 {
@@ -8,6 +8,22 @@ namespace FaultLens.Sdk.Tests.Serialization
     {
         [Fact]
         public void Envelope_Snapshot_Should_Not_Change()
+        {
+            // Arrange
+            var envelope = BuildKnownEnvelope();
+
+            // Act
+            JsonElement actualJson = JsonTestHelper.Serialize(envelope).RootElement.Clone();
+            var expectedJson = ExpectedEnvelopeJson;
+
+            var actualNode = JsonNode.Parse(actualJson.GetRawText());
+            var expectedNode = JsonNode.Parse(expectedJson);
+
+            // Assert
+            Assert.True(JsonNode.DeepEquals(expectedNode, actualNode), "Serialized ErrorEnvelope JSON contract has changed.");
+        }
+
+        private static ErrorEnvelope BuildKnownEnvelope()
         {
             // Arrange
             var sdk = new SdkInfo(name: "faultlens-dotnet", version: "1.0.0");
@@ -37,39 +53,30 @@ namespace FaultLens.Sdk.Tests.Serialization
                 message: null
             );
 
-            // Act
-            var json = JsonSerializer.Serialize(
-                envelope,
-                new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-
-            // Assert
-            const string expectedJson = @"{
-  ""eventId"": ""evt_123"",
-  ""timestamp"": ""2024-01-01T10:00:00+00:00"",
-  ""environment"": ""production"",
-  ""sdk"": {
-    ""name"": ""faultlens-dotnet"",
-    ""version"": ""1.0.0""
-  },
-  ""fingerprint"": ""fp_abc"",
-  ""exception"": {
-    ""type"": ""System.InvalidOperationException"",
-    ""message"": ""Something went wrong"",
-    ""stacktrace"": [
-      {
-        ""file"": ""Program.cs"",
-        ""method"": ""Main"",
-        ""line"": 42
-      }
-    ]
-  },
-  ""message"": null
-}";
-
-            json.Should().Be(expectedJson);
+            return envelope;
         }
+
+        private const string ExpectedEnvelopeJson = @"
+        {
+          ""eventId"": ""evt_123"",
+          ""timestamp"": ""2024-01-01T10:00:00+00:00"",
+          ""environment"": ""production"",
+          ""sdk"": {
+            ""name"": ""faultlens-dotnet"",
+            ""version"": ""1.0.0""
+          },
+          ""fingerprint"": ""fp_abc"",
+          ""exception"": {
+            ""type"": ""System.InvalidOperationException"",
+            ""message"": ""Something went wrong"",
+            ""stacktrace"": [
+              {
+                ""file"": ""Program.cs"",
+                ""method"": ""Main"",
+                ""line"": 42
+              }
+            ]
+          }
+        }";
     }
 }
