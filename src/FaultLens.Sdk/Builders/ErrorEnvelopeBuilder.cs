@@ -1,4 +1,4 @@
-﻿using FaultLens.Sdk.Envelopes;
+using FaultLens.Sdk.Envelopes;
 using System;
 using System.Collections.Generic;
 
@@ -48,13 +48,14 @@ namespace FaultLens.Sdk.Builders
         // Final build
         // -------------------------
 
-        public ErrorEnvelope Build()
+        public ErrorEnvelopeV1 Build()
         {
-            return new ErrorEnvelope(
+            return new ErrorEnvelopeV1(
                 eventId: Guid.NewGuid().ToString("N"),
                 timestamp: DateTimeOffset.UtcNow,
                 environment: _options.Environment,
                 sdk: _sdk,
+                release: _options.Release,
                 fingerprint: _fingerprint,
                 exception: _exception,
                 message: _message
@@ -92,3 +93,4 @@ namespace FaultLens.Sdk.Builders
         }
     }
 }
+

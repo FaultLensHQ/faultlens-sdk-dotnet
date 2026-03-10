@@ -1,4 +1,4 @@
-﻿using FaultLens.Sdk.Envelopes;
+using FaultLens.Sdk.Envelopes;
 using FaultLens.Sdk.Internal;
 using System;
 using System.Diagnostics;
@@ -25,7 +25,7 @@ namespace FaultLens.Sdk.Transport
             _retryPolicy = new RetryPolicy(maxRetries: 3, baseDelay: TimeSpan.FromMilliseconds(500));
         }
 
-        public async void Send(ErrorEnvelope envelope, Action<DeliveryResult> callback = null)
+        public async void Send(ErrorEnvelopeV1 envelope, Action<DeliveryResult> callback = null)
         {
             if (envelope == null)
                 return;
@@ -34,7 +34,7 @@ namespace FaultLens.Sdk.Transport
             _ = SendWithRetryAsync(envelope, callback);
         }
 
-        private async Task SendWithRetryAsync(ErrorEnvelope envelope, Action<DeliveryResult> callback = null)
+        private async Task SendWithRetryAsync(ErrorEnvelopeV1 envelope, Action<DeliveryResult> callback = null)
         {
             try
             {
@@ -44,7 +44,8 @@ namespace FaultLens.Sdk.Transport
 
                     try
                     {
-                        var request = new HttpRequestMessage(HttpMethod.Post, "/api/events/ingest")
+                        var ingestUri = new Uri(_options.Endpoint, "/api/events/ingest");
+                        var request = new HttpRequestMessage(HttpMethod.Post, ingestUri)
                         {
                             Content = new StringContent(JsonSerializer.Serialize(envelope), Encoding.UTF8, "application/json")
                         };
