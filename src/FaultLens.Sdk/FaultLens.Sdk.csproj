@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>netstandard2.1</TargetFramework>
@@ -7,7 +7,7 @@
 
 		<!-- Package Identity -->
 		<PackageId>FaultLens.Sdk</PackageId>
-		<Version>0.1.2</Version>
+		<Version>0.1.5</Version>
 		<Authors>FaultLens</Authors>
 		<Company>FaultLens</Company>
 
@@ -28,8 +28,14 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.1" />
+	  <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="10.0.0" />
 	  <PackageReference Include="System.Text.Json" Version="10.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>FaultLens.Sdk.Tests</_Parameter1>
+		</AssemblyAttribute>
 	</ItemGroup>
 
 </Project>

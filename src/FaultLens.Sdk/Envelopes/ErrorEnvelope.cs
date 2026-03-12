@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace FaultLens.Sdk.Envelopes
 {
@@ -11,7 +12,8 @@ namespace FaultLens.Sdk.Envelopes
             SdkInfo sdk,
             string fingerprint = null,
             ExceptionInfo exception = null,
-            string message = null)
+            string message = null,
+            IReadOnlyList<BreadcrumbInfo> breadcrumbs = null)
             : base(
                   eventId: eventId,
                   timestamp: timestamp,
@@ -20,7 +22,8 @@ namespace FaultLens.Sdk.Envelopes
                   release: null,
                   fingerprint: fingerprint,
                   exception: exception,
-                  message: message)
+                  message: message,
+                  breadcrumbs: breadcrumbs)
         {
         }
     }

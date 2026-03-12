@@ -12,6 +12,7 @@ namespace FaultLens.Sdk.Builders
         private string _fingerprint;
         private ExceptionInfo _exception;
         private string _message;
+        private IReadOnlyList<BreadcrumbInfo> _breadcrumbs;
 
         public ErrorEnvelopeBuilder(FaultLensOptions options, SdkInfo sdk)
         {
@@ -44,6 +45,12 @@ namespace FaultLens.Sdk.Builders
             return this;
         }
 
+        public ErrorEnvelopeBuilder WithBreadcrumbs(IReadOnlyList<BreadcrumbInfo> breadcrumbs)
+        {
+            _breadcrumbs = breadcrumbs;
+            return this;
+        }
+
         // -------------------------
         // Final build
         // -------------------------
@@ -58,7 +65,8 @@ namespace FaultLens.Sdk.Builders
                 release: _options.Release,
                 fingerprint: _fingerprint,
                 exception: _exception,
-                message: _message
+                message: _message,
+                breadcrumbs: _breadcrumbs
             );
         }
 
@@ -93,4 +101,3 @@ namespace FaultLens.Sdk.Builders
         }
     }
 }
-

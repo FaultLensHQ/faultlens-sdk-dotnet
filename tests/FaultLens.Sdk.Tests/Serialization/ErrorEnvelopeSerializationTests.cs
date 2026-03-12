@@ -1,4 +1,4 @@
-﻿using FaultLens.Sdk.Builders;
+using FaultLens.Sdk.Builders;
 
 namespace FaultLens.Sdk.Tests.Serialization
 {
@@ -76,6 +76,7 @@ namespace FaultLens.Sdk.Tests.Serialization
 
             Assert.False(root.TryGetProperty("fingerprint", out _));
             Assert.False(root.TryGetProperty("message", out _));
+            Assert.False(root.TryGetProperty("breadcrumbs", out _));
         }
 
         #region Privat methods

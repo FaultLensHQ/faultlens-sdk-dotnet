@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace FaultLens.Sdk.Envelopes
@@ -33,6 +34,10 @@ namespace FaultLens.Sdk.Envelopes
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string Message { get; }
 
+        [JsonPropertyName("breadcrumbs")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IReadOnlyList<BreadcrumbInfo> Breadcrumbs { get; }
+
         public ErrorEnvelopeV1(
             string eventId,
             DateTimeOffset timestamp,
@@ -41,7 +46,8 @@ namespace FaultLens.Sdk.Envelopes
             string release = null,
             string fingerprint = null,
             ExceptionInfo exception = null,
-            string message = null)
+            string message = null,
+            IReadOnlyList<BreadcrumbInfo> breadcrumbs = null)
         {
             if (string.IsNullOrWhiteSpace(eventId))
                 throw new ArgumentException("EventId is required.", nameof(eventId));
@@ -58,6 +64,7 @@ namespace FaultLens.Sdk.Envelopes
             Fingerprint = fingerprint;
             Exception = exception;
             Message = message;
+            Breadcrumbs = breadcrumbs;
         }
     }
 }
