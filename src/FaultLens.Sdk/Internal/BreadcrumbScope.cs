@@ -7,14 +7,16 @@ namespace FaultLens.Sdk.Internal
     internal sealed class BreadcrumbScope
     {
         private readonly int _capacity;
-        private readonly List<BreadcrumbEntry> _items;
+        private readonly BreadcrumbEntry[] _buffer;
         private int _nextSequence;
+        private int _count;
+        private int _head;
         private readonly object _sync = new object();
 
         public BreadcrumbScope(int capacity)
         {
             _capacity = capacity;
-            _items = new List<BreadcrumbEntry>(capacity);
+            _buffer = new BreadcrumbEntry[capacity];
             _nextSequence = 0;
         }
 
@@ -22,12 +24,16 @@ namespace FaultLens.Sdk.Internal
         {
             lock (_sync)
             {
-                if (_items.Count == _capacity)
+                var index = (_head + _count) % _capacity;
+                _buffer[index] = entry;
+
+                if (_count == _capacity)
                 {
-                    _items.RemoveAt(0);
+                    _head = (_head + 1) % _capacity;
+                    return;
                 }
 
-                _items.Add(entry);
+                _count++;
             }
         }
 
@@ -43,14 +49,21 @@ namespace FaultLens.Sdk.Internal
         {
             lock (_sync)
             {
-                var copy = _items
+                var copy = new List<BreadcrumbEntry>(_count);
+                for (var i = 0; i < _count; i++)
+                {
+                    var index = (_head + i) % _capacity;
+                    copy.Add(_buffer[index]);
+                    _buffer[index] = null;
+                }
+
+                _count = 0;
+                _head = 0;
+                _nextSequence = 0;
+                return copy
                     .OrderBy(x => x.Sequence)
                     .ThenBy(x => x.Timestamp)
                     .ToList();
-
-                _items.Clear();
-                _nextSequence = 0;
-                return copy;
             }
         }
     }
@@ -59,11 +72,14 @@ namespace FaultLens.Sdk.Internal
     {
         public DateTimeOffset Timestamp { get; set; }
         public int Sequence { get; set; }
+        public string Layer { get; set; }
         public string Type { get; set; }
         public string Category { get; set; }
         public string Level { get; set; }
         public string Message { get; set; }
         public string Source { get; set; }
+        public string EntityType { get; set; }
+        public string EntityId { get; set; }
         public IReadOnlyDictionary<string, object> Data { get; set; }
     }
 }

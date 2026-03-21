@@ -7,6 +7,8 @@ namespace FaultLens.Sdk
     {
         public DateTimeOffset? Timestamp { get; set; }
 
+        public string Layer { get; set; } = "application";
+
         public string Type { get; set; } = "log";
 
         public string Category { get; set; }
@@ -16,6 +18,10 @@ namespace FaultLens.Sdk
         public string Message { get; set; }
 
         public string Source { get; set; }
+
+        public string EntityType { get; set; }
+
+        public string EntityId { get; set; }
 
         public IReadOnlyDictionary<string, object> Data { get; set; }
     }

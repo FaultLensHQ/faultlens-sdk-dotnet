@@ -16,7 +16,7 @@ namespace FaultLens.Sdk
             string environment = "production",
             string release = null,
             Uri endpoint = null,
-            int breadcrumbCapacity = 50)
+            int breadcrumbCapacity = 40)
         {
             ApiKey = apiKey ?? throw new ArgumentNullException(nameof(apiKey));
             Environment = environment;

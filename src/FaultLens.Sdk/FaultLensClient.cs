@@ -20,15 +20,21 @@ namespace FaultLens.Sdk
 
         private readonly AsyncLocal<BreadcrumbScope> _breadcrumbScope = new AsyncLocal<BreadcrumbScope>();
         private readonly AsyncLocal<string> _scopeKey = new AsyncLocal<string>();
+        private readonly AsyncLocal<RequestScopeState> _requestScope = new AsyncLocal<RequestScopeState>();
 
         private int _disposed;
 
         public FaultLensClient(FaultLensOptions options)
+            : this(options, null)
+        {
+        }
+
+        internal FaultLensClient(FaultLensOptions options, IEventTransport transport)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
 
             _envelopeBuilder = new ErrorEnvelopeBuilder(_options, new SdkInfo());
-            _transport = new HttpEventTransport(_options);
+            _transport = transport ?? new HttpEventTransport(_options);
             _executor = new SafeExecutor();
             _scopeRegistry = new BreadcrumbScopeRegistry();
         }
@@ -44,13 +50,102 @@ namespace FaultLens.Sdk
             {
                 Timestamp = breadcrumb.Timestamp ?? DateTimeOffset.UtcNow,
                 Sequence = sequence,
-                Type = Normalize(breadcrumb.Type, "log"),
-                Category = (breadcrumb.Category ?? string.Empty).Trim(),
-                Level = Normalize(breadcrumb.Level, "info"),
-                Message = breadcrumb.Message.Trim(),
-                Source = string.IsNullOrWhiteSpace(breadcrumb.Source) ? null : breadcrumb.Source.Trim(),
+                Layer = BreadcrumbSanitizer.NormalizeLayer(breadcrumb.Layer, breadcrumb.Type),
+                Type = BreadcrumbSanitizer.NormalizeType(breadcrumb.Type, "log"),
+                Category = BreadcrumbSanitizer.SanitizeCategory(breadcrumb.Category),
+                Level = BreadcrumbSanitizer.NormalizeLevel(breadcrumb.Level, "info"),
+                Message = BreadcrumbSanitizer.SanitizeMessage(breadcrumb.Message),
+                Source = BreadcrumbSanitizer.SanitizeSource(breadcrumb.Source),
+                EntityType = BreadcrumbSanitizer.SanitizeEntityType(breadcrumb.EntityType),
+                EntityId = BreadcrumbSanitizer.SanitizeEntityId(breadcrumb.EntityId),
                 Data = BreadcrumbSanitizer.Sanitize(breadcrumb.Data)
             });
+        }
+
+        public void AddStep(
+            string category,
+            string message,
+            BreadcrumbLayer layer = BreadcrumbLayer.Application,
+            BreadcrumbLevel level = BreadcrumbLevel.Info,
+            string source = null,
+            string entityType = null,
+            string entityId = null,
+            IReadOnlyDictionary<string, object> data = null)
+        {
+            AddBreadcrumb(new Breadcrumb
+            {
+                Layer = ToLayer(layer),
+                Type = "step",
+                Category = category,
+                Level = ToLevel(level),
+                Message = message,
+                Source = source,
+                EntityType = entityType,
+                EntityId = entityId,
+                Data = data
+            });
+        }
+
+        public void AddDecision(
+            string category,
+            string message,
+            BreadcrumbLayer layer = BreadcrumbLayer.Application,
+            BreadcrumbLevel level = BreadcrumbLevel.Info,
+            string source = null,
+            string entityType = null,
+            string entityId = null,
+            IReadOnlyDictionary<string, object> data = null)
+        {
+            AddBreadcrumb(new Breadcrumb
+            {
+                Layer = ToLayer(layer),
+                Type = "decision",
+                Category = category,
+                Level = ToLevel(level),
+                Message = message,
+                Source = source,
+                EntityType = entityType,
+                EntityId = entityId,
+                Data = data
+            });
+        }
+
+        public IFaultLensRequestScope BeginRequest(
+            string method,
+            string route,
+            string source = null,
+            IReadOnlyDictionary<string, object> data = null)
+        {
+            if (IsDisposed())
+                return NoopRequestScope.Instance;
+
+            var normalizedMethod = string.IsNullOrWhiteSpace(method) ? "GET" : method.Trim().ToUpperInvariant();
+            var normalizedRoute = BreadcrumbSanitizer.SanitizeMessage(route);
+            if (string.IsNullOrWhiteSpace(normalizedRoute))
+                normalizedRoute = "/";
+
+            var state = new RequestScopeState(normalizedMethod, normalizedRoute, BreadcrumbSanitizer.SanitizeSource(source));
+            _requestScope.Value = state;
+
+            AddBreadcrumb(new Breadcrumb
+            {
+                Layer = "request",
+                Type = "http",
+                Category = "request.started",
+                Level = "info",
+                Message = normalizedMethod + " " + normalizedRoute,
+                Source = state.Source,
+                Data = MergeRequestData(
+                    data,
+                    new Dictionary<string, object>
+                    {
+                        ["method"] = normalizedMethod,
+                        ["route"] = normalizedRoute,
+                        ["traceId"] = TryGetCorrelationKey()
+                    })
+            });
+
+            return new ActiveRequestScope(this, state);
         }
 
         public void CaptureException(Exception exception, string fingerprint = null, Action<DeliveryResult> callback = null)
@@ -60,6 +155,8 @@ namespace FaultLens.Sdk
 
             _executor.Execute(() =>
             {
+                EnsureRequestFailedBreadcrumb(exception);
+
                 var envelope = _envelopeBuilder
                     .WithException(exception)
                     .WithFingerprint(fingerprint)
@@ -182,13 +279,113 @@ namespace FaultLens.Sdk
                 .Select(x => new BreadcrumbInfo(
                     timestamp: x.Timestamp.ToString("O"),
                     sequence: x.Sequence,
+                    layer: x.Layer,
                     type: x.Type,
                     category: x.Category,
                     level: x.Level,
                     message: x.Message,
                     source: x.Source,
+                    entityType: x.EntityType,
+                    entityId: x.EntityId,
                     data: x.Data))
                 .ToList();
+        }
+
+        private void CompleteRequest(RequestScopeState state, int? statusCode, IReadOnlyDictionary<string, object> data)
+        {
+            if (state == null || state.IsCompleted || state.IsFailed)
+                return;
+
+            state.IsCompleted = true;
+            AddBreadcrumb(new Breadcrumb
+            {
+                Layer = "request",
+                Type = "http",
+                Category = "request.completed",
+                Level = statusCode.HasValue && statusCode.Value >= 500 ? "warning" : "info",
+                Message = state.Method + " " + state.Route + " completed",
+                Source = state.Source,
+                Data = MergeRequestData(
+                    data,
+                    new Dictionary<string, object>
+                    {
+                        ["method"] = state.Method,
+                        ["route"] = state.Route,
+                        ["statusCode"] = statusCode,
+                        ["durationMs"] = state.Stopwatch.ElapsedMilliseconds,
+                        ["traceId"] = TryGetCorrelationKey()
+                    })
+            });
+
+            if (ReferenceEquals(_requestScope.Value, state))
+                _requestScope.Value = null;
+        }
+
+        private void FailRequest(RequestScopeState state, int? statusCode, IReadOnlyDictionary<string, object> data, Exception exception)
+        {
+            if (state == null || state.IsFailed)
+                return;
+
+            state.IsFailed = true;
+            AddBreadcrumb(new Breadcrumb
+            {
+                Layer = "system",
+                Type = "error",
+                Category = "request.failed",
+                Level = "error",
+                Message = state.Method + " " + state.Route + " failed",
+                Source = state.Source,
+                Data = MergeRequestData(
+                    data,
+                    new Dictionary<string, object>
+                    {
+                        ["method"] = state.Method,
+                        ["route"] = state.Route,
+                        ["statusCode"] = statusCode,
+                        ["durationMs"] = state.Stopwatch.ElapsedMilliseconds,
+                        ["traceId"] = TryGetCorrelationKey(),
+                        ["exceptionType"] = exception == null ? null : exception.GetType().FullName
+                    })
+            });
+
+            if (ReferenceEquals(_requestScope.Value, state))
+                _requestScope.Value = null;
+        }
+
+        private void EnsureRequestFailedBreadcrumb(Exception exception)
+        {
+            var state = _requestScope.Value;
+            if (state == null || state.IsFailed)
+                return;
+
+            FailRequest(state, null, null, exception);
+        }
+
+        private static IReadOnlyDictionary<string, object> MergeRequestData(
+            IReadOnlyDictionary<string, object> original,
+            IReadOnlyDictionary<string, object> additions)
+        {
+            var merged = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            if (original != null)
+            {
+                foreach (var item in original)
+                {
+                    merged[item.Key] = item.Value;
+                }
+            }
+
+            if (additions != null)
+            {
+                foreach (var item in additions)
+                {
+                    if (item.Value != null)
+                    {
+                        merged[item.Key] = item.Value;
+                    }
+                }
+            }
+
+            return merged;
         }
 
         private static string TryGetCorrelationKey()
@@ -204,12 +401,112 @@ namespace FaultLens.Sdk
             return string.IsNullOrWhiteSpace(activity.Id) ? null : activity.Id;
         }
 
-        private static string Normalize(string value, string fallback)
+        private static string ToLayer(BreadcrumbLayer layer)
         {
-            if (string.IsNullOrWhiteSpace(value))
-                return fallback;
+            switch (layer)
+            {
+                case BreadcrumbLayer.Request:
+                    return "request";
+                case BreadcrumbLayer.Domain:
+                    return "domain";
+                case BreadcrumbLayer.Data:
+                    return "data";
+                case BreadcrumbLayer.External:
+                    return "external";
+                case BreadcrumbLayer.System:
+                    return "system";
+                default:
+                    return "application";
+            }
+        }
 
-            return value.Trim().ToLowerInvariant();
+        private static string ToLevel(BreadcrumbLevel level)
+        {
+            switch (level)
+            {
+                case BreadcrumbLevel.Debug:
+                    return "debug";
+                case BreadcrumbLevel.Warning:
+                    return "warning";
+                case BreadcrumbLevel.Error:
+                    return "error";
+                default:
+                    return "info";
+            }
+        }
+
+        private sealed class ActiveRequestScope : IFaultLensRequestScope
+        {
+            private readonly FaultLensClient _client;
+            private readonly RequestScopeState _state;
+            private int _disposed;
+
+            public ActiveRequestScope(FaultLensClient client, RequestScopeState state)
+            {
+                _client = client;
+                _state = state;
+            }
+
+            public void Complete(int? statusCode = null, IReadOnlyDictionary<string, object> data = null)
+            {
+                if (Interlocked.Exchange(ref _disposed, 1) == 1)
+                    return;
+
+                _client.CompleteRequest(_state, statusCode, data);
+            }
+
+            public void Fail(int? statusCode = null, IReadOnlyDictionary<string, object> data = null)
+            {
+                if (Interlocked.Exchange(ref _disposed, 1) == 1)
+                    return;
+
+                _client.FailRequest(_state, statusCode, data, null);
+            }
+
+            public void Dispose()
+            {
+                Complete();
+            }
+        }
+
+        private sealed class NoopRequestScope : IFaultLensRequestScope
+        {
+            public static readonly NoopRequestScope Instance = new NoopRequestScope();
+
+            public void Complete(int? statusCode = null, IReadOnlyDictionary<string, object> data = null)
+            {
+            }
+
+            public void Fail(int? statusCode = null, IReadOnlyDictionary<string, object> data = null)
+            {
+            }
+
+            public void Dispose()
+            {
+            }
+        }
+
+        private sealed class RequestScopeState
+        {
+            public RequestScopeState(string method, string route, string source)
+            {
+                Method = method;
+                Route = route;
+                Source = source;
+                Stopwatch = Stopwatch.StartNew();
+            }
+
+            public string Method { get; }
+
+            public string Route { get; }
+
+            public string Source { get; }
+
+            public Stopwatch Stopwatch { get; }
+
+            public bool IsCompleted { get; set; }
+
+            public bool IsFailed { get; set; }
         }
     }
 }

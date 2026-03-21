@@ -9,10 +9,10 @@ namespace FaultLens.Sdk.Tests
         {
             var scope = new BreadcrumbScope(capacity: 3);
 
-            scope.Add(new BreadcrumbEntry { Sequence = 0, Timestamp = DateTimeOffset.UtcNow, Message = "one" });
-            scope.Add(new BreadcrumbEntry { Sequence = 1, Timestamp = DateTimeOffset.UtcNow, Message = "two" });
-            scope.Add(new BreadcrumbEntry { Sequence = 2, Timestamp = DateTimeOffset.UtcNow, Message = "three" });
-            scope.Add(new BreadcrumbEntry { Sequence = 3, Timestamp = DateTimeOffset.UtcNow, Message = "four" });
+            scope.Add(new BreadcrumbEntry { Sequence = 0, Timestamp = DateTimeOffset.UtcNow, Layer = "application", Message = "one" });
+            scope.Add(new BreadcrumbEntry { Sequence = 1, Timestamp = DateTimeOffset.UtcNow, Layer = "application", Message = "two" });
+            scope.Add(new BreadcrumbEntry { Sequence = 2, Timestamp = DateTimeOffset.UtcNow, Layer = "application", Message = "three" });
+            scope.Add(new BreadcrumbEntry { Sequence = 3, Timestamp = DateTimeOffset.UtcNow, Layer = "application", Message = "four" });
 
             var snapshot = scope.SnapshotAndClear();
 
@@ -35,6 +35,19 @@ namespace FaultLens.Sdk.Tests
 
             Assert.Equal("***redacted***", sanitized["token"]);
             Assert.Equal(200, sanitized["statusCode"]);
+        }
+
+        [Fact]
+        public void BreadcrumbSanitizer_Should_Trim_Message_And_Metadata()
+        {
+            var sanitized = BreadcrumbSanitizer.Sanitize(new Dictionary<string, object>
+            {
+                ["trace"] = new string('x', BreadcrumbSanitizer.MetadataValueMaxLength + 10)
+            });
+
+            Assert.Equal(BreadcrumbSanitizer.MetadataValueMaxLength, sanitized["trace"].ToString().Length);
+            Assert.Equal("request", BreadcrumbSanitizer.NormalizeLayer(null, "http"));
+            Assert.Equal("warning", BreadcrumbSanitizer.NormalizeLevel("WARNING", "info"));
         }
     }
 }
