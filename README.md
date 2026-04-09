@@ -201,7 +201,28 @@ Create a local package:
 dotnet pack src/FaultLens.Sdk/FaultLens.Sdk.csproj -c Release
 ```
 
+Validate a local package in a real app:
+
+```bash
+dotnet pack src/FaultLens.Sdk/FaultLens.Sdk.csproj -c Release -o C:\PersonalProjects\localnugetfeed
+```
+
+Then, in a consumer application that uses a `NuGet.config` including your local feed:
+
+```bash
+dotnet add package FaultLens.Sdk --version 0.1.7
+dotnet build
+dotnet test --no-build
+```
+
+This repo's current local-package verification was done with:
+
+- a locally packed `FaultLens.Sdk.0.1.7.nupkg`
+- a separate ASP.NET Core consumer app already wired to FaultLens SDK APIs
+- successful consumer build and passing existing consumer tests
+
 ## Known gaps in current public readiness
 
 - no framework-specific integration package yet
 - no end-to-end published NuGet verification recorded in this repo yet
+- published-package verification should still be repeated once against a public NuGet source in an unrestricted environment
