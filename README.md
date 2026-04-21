@@ -1,50 +1,37 @@
 # FaultLens .NET SDK
 
-`FaultLens.Sdk` is the .NET client for sending production errors and diagnostic breadcrumbs to FaultLens.
+`FaultLens.SDK` is the official .NET client package for capturing application errors, diagnostic breadcrumbs, and request context, then sending them to FaultLens for investigation.
 
-The SDK is designed to be:
+This package is designed to be:
 
-- non-blocking
-- safe by default
-- dependency-light
-- usable from plain .NET applications without ASP.NET Core-specific wiring
+- non-blocking in application code paths
+- safe by default, with capture methods that do not throw user-visible exceptions
+- lightweight and usable from plain .NET applications
+- independent of ASP.NET Core-specific dependency injection or middleware
 
-## Current Day 2 baseline
+## Prerelease Notice
 
-This repo is in the production-readiness pass for public installability.
-
-What exists today:
-
-- packageable SDK project: `src/FaultLens.Sdk/FaultLens.Sdk.csproj`
-- core client for exception and message capture
-- breadcrumb and request-scope support
-- unit and serialization tests under `tests/FaultLens.Sdk.Tests`
-
-What is not in scope here:
-
-- ASP.NET Core DI/middleware package
-- guaranteed delivery or persistent queues
-- deep framework-specific integrations
+`0.1.0-beta.1` is a prerelease package. The core capture and serialization contracts are available for early integration testing, but APIs may still change before a stable `1.0` release.
 
 ## Requirements
 
 - a .NET application that can consume `netstandard2.1`
 - a FaultLens project API key
-- network access from your app to the FaultLens ingest endpoint
+- network access from your application to the FaultLens ingest endpoint
 
 ## Install
 
 ```bash
-dotnet add package FaultLens.Sdk
+dotnet add package FaultLens.SDK --version 0.1.0-beta.1
 ```
 
-## Quick start
+## Quick Start
 
 ```csharp
 using System;
 using FaultLens.Sdk;
 
-var client = new FaultLensClient(
+using var client = new FaultLensClient(
     new FaultLensOptions(
         apiKey: "YOUR_PROJECT_API_KEY",
         environment: "production",
@@ -60,7 +47,6 @@ catch (Exception ex)
 }
 
 client.Flush(TimeSpan.FromSeconds(2));
-client.Dispose();
 ```
 
 ## Configuration
@@ -76,13 +62,13 @@ var options = new FaultLensOptions(
     breadcrumbCapacity: 40);
 ```
 
-Fields:
+Options:
 
 - `apiKey`: required project API key from FaultLens
 - `environment`: environment label such as `production` or `staging`
-- `release`: optional release/build version
+- `release`: optional release or build version
 - `endpoint`: optional override for non-default FaultLens API environments
-- `breadcrumbCapacity`: max in-memory breadcrumbs retained before capture
+- `breadcrumbCapacity`: maximum in-memory breadcrumbs retained before capture
 
 Default endpoint:
 
@@ -90,7 +76,7 @@ Default endpoint:
 https://api.faultlens.io
 ```
 
-## Common usage
+## Capturing Errors
 
 Capture an exception:
 
@@ -112,7 +98,7 @@ Capture a message:
 client.CaptureMessage("Unexpected state reached");
 ```
 
-Capture a message with delivery feedback:
+Capture with optional delivery feedback:
 
 ```csharp
 client.CaptureMessage(
@@ -126,16 +112,16 @@ client.CaptureMessage(
     });
 ```
 
-## Breadcrumbs and request scope
+## Breadcrumbs
 
-Add breadcrumbs before capture:
+Add breadcrumbs before capture to preserve the path that led to an error:
 
 ```csharp
 client.AddStep("checkout", "Payment flow started");
 client.AddDecision("checkout", "Retrying gateway call");
 ```
 
-Use a request scope when you want request lifecycle breadcrumbs:
+Use a request scope to capture request lifecycle breadcrumbs:
 
 ```csharp
 using (var scope = client.BeginRequest("GET", "/orders/{id}"))
@@ -153,17 +139,12 @@ using (var scope = client.BeginRequest("GET", "/orders/{id}"))
 }
 ```
 
-## Delivery behavior
+## Delivery Behavior
 
-The SDK contract is intentionally simple:
-
-- capture methods never throw user-visible exceptions
 - capture methods do not block application flow
 - events are delivered asynchronously
 - delivery callbacks are optional and advisory
-- `Flush(...)` is available when you need a bounded shutdown drain
-
-## Error codes
+- `Flush(...)` provides a bounded shutdown drain when needed
 
 Possible `DeliveryResult.ErrorCode` values:
 
@@ -178,51 +159,9 @@ Possible `DeliveryResult.ErrorCode` values:
 - target framework: `netstandard2.1`
 - C# language version: `8.0`
 - no ASP.NET Core dependency
-- no `IHttpClientFactory`
+- no `IHttpClientFactory` dependency
 - no Polly dependency
 
-## Local development
+## Package Namespace
 
-Build:
-
-```bash
-dotnet build FaultLens.Sdk.sln -nologo
-```
-
-Test:
-
-```bash
-dotnet test FaultLens.Sdk.sln -nologo
-```
-
-Create a local package:
-
-```bash
-dotnet pack src/FaultLens.Sdk/FaultLens.Sdk.csproj -c Release
-```
-
-Validate a local package in a real app:
-
-```bash
-dotnet pack src/FaultLens.Sdk/FaultLens.Sdk.csproj -c Release -o C:\PersonalProjects\localnugetfeed
-```
-
-Then, in a consumer application that uses a `NuGet.config` including your local feed:
-
-```bash
-dotnet add package FaultLens.Sdk --version 0.1.7
-dotnet build
-dotnet test --no-build
-```
-
-This repo's current local-package verification was done with:
-
-- a locally packed `FaultLens.Sdk.0.1.7.nupkg`
-- a separate ASP.NET Core consumer app already wired to FaultLens SDK APIs
-- successful consumer build and passing existing consumer tests
-
-## Known gaps in current public readiness
-
-- no framework-specific integration package yet
-- no end-to-end published NuGet verification recorded in this repo yet
-- published-package verification should still be repeated once against a public NuGet source in an unrestricted environment
+The NuGet package ID is `FaultLens.SDK`; the code namespace is `FaultLens.Sdk`.

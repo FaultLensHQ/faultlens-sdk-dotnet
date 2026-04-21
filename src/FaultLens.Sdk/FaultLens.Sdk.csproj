@@ -7,17 +7,16 @@
 		<ImplicitUsings>disable</ImplicitUsings>
 
 		<!-- Package Identity -->
-		<PackageId>FaultLens.Sdk</PackageId>
-		<Version>0.1.7</Version>
+		<PackageId>FaultLens.SDK</PackageId>
+		<Version>0.1.0-beta.1</Version>
 		<Authors>FaultLens</Authors>
 		<Company>FaultLens</Company>
 		<IsPackable>true</IsPackable>
 
 		<!-- Package Metadata -->
-		<Description>FaultLens .NET SDK for non-blocking production error capture, breadcrumbs, and request-scoped diagnostics.</Description>
-		<PackageTags>faultlens;errors;observability;monitoring</PackageTags>
-		<PackageProjectUrl>https://faultlens.in/docs</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/FaultLensHQ/faultlens-sdk-dotnet</RepositoryUrl>
+		<Description>Official FaultLens .NET SDK for capturing and sending application errors and diagnostics to FaultLens.</Description>
+		<PackageTags>faultlens;monitoring;observability;errors;diagnostics;dotnet</PackageTags>
+		<PackageProjectUrl>https://faultlens.in</PackageProjectUrl>
 		<RepositoryType>git</RepositoryType>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -25,6 +24,8 @@
 
 		<!-- Build Settings -->
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 		<Nullable>disable</Nullable>
 
 		<!-- Deterministic & Safe -->

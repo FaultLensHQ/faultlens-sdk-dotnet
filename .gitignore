@@ -29,5 +29,7 @@ _ReSharper*/
 .vs/
 #Nuget packages folder
 packages/
+.nupkg/
+.package-smoke/
 .idea/*
 .dotnet/

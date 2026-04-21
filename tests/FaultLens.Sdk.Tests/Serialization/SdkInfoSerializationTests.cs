@@ -11,7 +11,7 @@
             var root = json.RootElement;
 
             Assert.Equal("faultlens-dotnet", root.GetProperty("name").GetString());
-            Assert.Equal("1.0.0", root.GetProperty("version").GetString());
+            Assert.StartsWith("0.1.0-beta.1", root.GetProperty("version").GetString());
         }
     }
 }
