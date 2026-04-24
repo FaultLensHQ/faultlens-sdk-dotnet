@@ -2,6 +2,21 @@
 
 `FaultLens.SDK` is the official .NET client package for capturing application errors, diagnostic breadcrumbs, and request context, then sending them to FaultLens for investigation.
 
+FaultLens is a focused multi-tenant SaaS product for diagnosing production issues faster.
+
+Current platform truth:
+
+- Brand: `FaultLens`
+- Website: `faultlens.in`
+- NuGet organization: `FaultLens`
+- NuGet package: `FaultLens.SDK`
+- NuGet prefix request: `FaultLens.*`
+- npm organization: `faultlenshq`
+- npm scope: `@faultlenshq`
+- Production marketing is live at `faultlens.in`.
+- The real multi-tenant SaaS product is not live in production yet.
+- Staging is live and is the active validation environment.
+
 This package is designed to be:
 
 - non-blocking in application code paths
@@ -67,7 +82,7 @@ Options:
 - `apiKey`: required project API key from FaultLens
 - `environment`: environment label such as `production` or `staging`
 - `release`: optional release or build version
-- `endpoint`: optional override for non-default FaultLens API environments
+- `endpoint`: optional override for non-default FaultLens API environments. Use the staging ingest/API endpoint during staging validation until the production SaaS is explicitly live.
 - `breadcrumbCapacity`: maximum in-memory breadcrumbs retained before capture
 
 Default endpoint:
@@ -75,6 +90,8 @@ Default endpoint:
 ```text
 https://api.faultlens.io
 ```
+
+Note: this default endpoint is legacy SDK-package behavior until the hosted product endpoint strategy is finalized. Do not infer production SaaS availability from this default.
 
 ## Capturing Errors
 

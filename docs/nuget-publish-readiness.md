@@ -7,7 +7,18 @@ Locked package identity:
 - Package ID: `FaultLens.SDK`
 - Version: `0.1.0-beta.1`
 - NuGet organization: `FaultLens`
+- NuGet prefix request: `FaultLens.*`
 - Repository name alignment: `faultlens-sdk-dotnet`
+- Public website: `faultlens.in`
+- npm organization for sibling JS packages: `faultlenshq`
+- npm scope for sibling JS packages: `@faultlenshq`
+
+Product availability truth:
+
+- Production marketing is live at `faultlens.in`.
+- The real multi-tenant SaaS product is not live in production yet.
+- Staging is live and is the active validation environment.
+- SDK publishing should not imply production SaaS availability until product production validation is complete.
 
 ## Pack locally
 
