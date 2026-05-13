@@ -13,6 +13,10 @@ namespace FaultLens.Sdk.Builders
         private ExceptionInfo _exception;
         private string _message;
         private IReadOnlyList<BreadcrumbInfo> _breadcrumbs;
+        private RequestContextInfo _requestContext;
+        private ClientContextInfo _clientContext;
+        private string _userId;
+        private IReadOnlyDictionary<string, string> _tags;
 
         public ErrorEnvelopeBuilder(FaultLensOptions options, SdkInfo sdk)
         {
@@ -51,6 +55,30 @@ namespace FaultLens.Sdk.Builders
             return this;
         }
 
+        public ErrorEnvelopeBuilder WithRequestContext(RequestContextInfo context)
+        {
+            _requestContext = context;
+            return this;
+        }
+
+        public ErrorEnvelopeBuilder WithClientContext(ClientContextInfo context)
+        {
+            _clientContext = context;
+            return this;
+        }
+
+        public ErrorEnvelopeBuilder WithUserId(string userId)
+        {
+            _userId = userId;
+            return this;
+        }
+
+        public ErrorEnvelopeBuilder WithTags(IReadOnlyDictionary<string, string> tags)
+        {
+            _tags = tags;
+            return this;
+        }
+
         // -------------------------
         // Final build
         // -------------------------
@@ -66,7 +94,11 @@ namespace FaultLens.Sdk.Builders
                 fingerprint: _fingerprint,
                 exception: _exception,
                 message: _message,
-                breadcrumbs: _breadcrumbs
+                breadcrumbs: _breadcrumbs,
+                request: _requestContext,
+                client: _clientContext,
+                userId: _userId,
+                tags: _tags
             );
         }
 

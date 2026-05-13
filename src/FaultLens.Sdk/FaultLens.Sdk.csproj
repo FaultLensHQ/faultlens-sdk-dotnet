@@ -8,7 +8,7 @@
 
 		<!-- Package Identity -->
 		<PackageId>FaultLens.SDK</PackageId>
-		<Version>0.1.0-beta.1</Version>
+		<Version>0.1.0-beta.2</Version>
 		<Authors>FaultLens</Authors>
 		<Company>FaultLens</Company>
 		<IsPackable>true</IsPackable>

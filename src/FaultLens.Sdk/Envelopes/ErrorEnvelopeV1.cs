@@ -38,6 +38,22 @@ namespace FaultLens.Sdk.Envelopes
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public IReadOnlyList<BreadcrumbInfo> Breadcrumbs { get; }
 
+        [JsonPropertyName("request")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public RequestContextInfo Request { get; }
+
+        [JsonPropertyName("client")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public ClientContextInfo Client { get; }
+
+        [JsonPropertyName("userId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string UserId { get; }
+
+        [JsonPropertyName("tags")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IReadOnlyDictionary<string, string> Tags { get; }
+
         public ErrorEnvelopeV1(
             string eventId,
             DateTimeOffset timestamp,
@@ -47,7 +63,11 @@ namespace FaultLens.Sdk.Envelopes
             string fingerprint = null,
             ExceptionInfo exception = null,
             string message = null,
-            IReadOnlyList<BreadcrumbInfo> breadcrumbs = null)
+            IReadOnlyList<BreadcrumbInfo> breadcrumbs = null,
+            RequestContextInfo request = null,
+            ClientContextInfo client = null,
+            string userId = null,
+            IReadOnlyDictionary<string, string> tags = null)
         {
             if (string.IsNullOrWhiteSpace(eventId))
                 throw new ArgumentException("EventId is required.", nameof(eventId));
@@ -65,6 +85,10 @@ namespace FaultLens.Sdk.Envelopes
             Exception = exception;
             Message = message;
             Breadcrumbs = breadcrumbs;
+            Request = request;
+            Client = client;
+            UserId = userId;
+            Tags = tags;
         }
     }
 }

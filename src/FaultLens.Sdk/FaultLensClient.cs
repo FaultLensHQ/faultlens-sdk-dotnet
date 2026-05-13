@@ -157,10 +157,15 @@ namespace FaultLens.Sdk
             {
                 EnsureRequestFailedBreadcrumb(exception);
 
+                var scopeState = _requestScope.Value;
                 var envelope = _envelopeBuilder
                     .WithException(exception)
                     .WithFingerprint(fingerprint)
                     .WithBreadcrumbs(SnapshotBreadcrumbs())
+                    .WithRequestContext(BuildRequestContext(scopeState))
+                    .WithClientContext(BuildClientContext(scopeState?.UserAgent))
+                    .WithUserId(scopeState?.UserId)
+                    .WithTags(GetScopeTags(scopeState))
                     .Build();
 
                 _transport.Send(envelope, callback);
@@ -174,10 +179,15 @@ namespace FaultLens.Sdk
 
             _executor.Execute(() =>
             {
+                var scopeState = _requestScope.Value;
                 var envelope = _envelopeBuilder
                     .WithMessage(message)
                     .WithFingerprint(fingerprint)
                     .WithBreadcrumbs(SnapshotBreadcrumbs())
+                    .WithRequestContext(BuildRequestContext(scopeState))
+                    .WithClientContext(BuildClientContext(scopeState?.UserAgent))
+                    .WithUserId(scopeState?.UserId)
+                    .WithTags(GetScopeTags(scopeState))
                     .Build();
 
                 _transport.Send(envelope, callback);
@@ -435,6 +445,37 @@ namespace FaultLens.Sdk
             }
         }
 
+        private static RequestContextInfo BuildRequestContext(RequestScopeState state)
+        {
+            if (state == null || (state.Url == null && state.QueryString == null && state.Referrer == null))
+                return null;
+
+            return new RequestContextInfo(
+                requestedUrl: state.Url,
+                method: state.Method,
+                route: state.Route,
+                queryString: state.QueryString,
+                referrer: state.Referrer
+            );
+        }
+
+        private static ClientContextInfo BuildClientContext(string userAgent)
+        {
+            return new ClientContextInfo(
+                userAgent: userAgent,
+                runtimeName: ".NET",
+                runtimeVersion: System.Environment.Version.ToString()
+            );
+        }
+
+        private static IReadOnlyDictionary<string, string> GetScopeTags(RequestScopeState state)
+        {
+            if (state == null)
+                return null;
+
+            return state.GetTags();
+        }
+
         private sealed class ActiveRequestScope : IFaultLensRequestScope
         {
             private readonly FaultLensClient _client;
@@ -463,6 +504,28 @@ namespace FaultLens.Sdk
                 _client.FailRequest(_state, statusCode, data, null);
             }
 
+            public void SetRequestContext(
+                string url,
+                string referrer = null,
+                string userAgent = null,
+                string queryString = null)
+            {
+                _state.Url = QueryStringSanitizer.SanitizeUrl(url);
+                _state.QueryString = QueryStringSanitizer.SanitizeQueryString(queryString);
+                _state.Referrer = referrer;
+                _state.UserAgent = userAgent;
+            }
+
+            public void SetUserId(string userId)
+            {
+                _state.UserId = string.IsNullOrWhiteSpace(userId) ? null : userId.Trim();
+            }
+
+            public void SetTag(string key, string value)
+            {
+                _state.AddTag(key, value);
+            }
+
             public void Dispose()
             {
                 Complete();
@@ -488,6 +551,8 @@ namespace FaultLens.Sdk
 
         private sealed class RequestScopeState
         {
+            private Dictionary<string, string> _tags;
+
             public RequestScopeState(string method, string route, string source)
             {
                 Method = method;
@@ -507,6 +572,32 @@ namespace FaultLens.Sdk
             public bool IsCompleted { get; set; }
 
             public bool IsFailed { get; set; }
+
+            public string Url { get; set; }
+
+            public string QueryString { get; set; }
+
+            public string Referrer { get; set; }
+
+            public string UserAgent { get; set; }
+
+            public string UserId { get; set; }
+
+            public void AddTag(string key, string value)
+            {
+                if (string.IsNullOrWhiteSpace(key))
+                    return;
+
+                if (_tags == null)
+                    _tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                _tags[key.Trim()] = value ?? string.Empty;
+            }
+
+            public IReadOnlyDictionary<string, string> GetTags()
+            {
+                return _tags;
+            }
         }
     }
 }

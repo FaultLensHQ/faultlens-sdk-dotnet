@@ -26,7 +26,13 @@ This package is designed to be:
 
 ## Prerelease Notice
 
-`0.1.0-beta.1` is a prerelease package. The core capture and serialization contracts are available for early integration testing, but APIs may still change before a stable `1.0` release.
+`0.1.0-beta.2` is a prerelease package. The core capture and serialization contracts are available for early integration testing, but APIs may still change before a stable `1.0` release.
+
+### What's new in 0.1.0-beta.2
+
+- **Request context**: `scope.SetRequestContext(url, referrer, userAgent)` — captures HTTP request URL, referrer, and user agent in the event payload
+- **User identity**: `scope.SetUserId(userId)` — associates the authenticated user with an event
+- **Tags**: `scope.SetTag(key, value)` — adds arbitrary key/value labels for filtering
 
 ## Requirements
 
@@ -37,7 +43,7 @@ This package is designed to be:
 ## Install
 
 ```bash
-dotnet add package FaultLens.SDK --version 0.1.0-beta.1
+dotnet add package FaultLens.SDK --version 0.1.0-beta.2
 ```
 
 ## Quick Start
