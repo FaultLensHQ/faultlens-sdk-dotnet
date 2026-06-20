@@ -1,11 +1,11 @@
 # NuGet Publish Readiness
 
-This checklist prepares the first public prerelease package for the official FaultLens .NET SDK.
+This checklist prepares the `1.0.0` public package for the official FaultLens .NET SDK.
 
 Locked package identity:
 
 - Package ID: `FaultLens.SDK`
-- Version: `0.1.0-beta.2`
+- Version: `1.0.0`
 - NuGet organization: `FaultLens`
 - NuGet prefix request: `FaultLens.*`
 - Repository name alignment: `faultlens-sdk-dotnet`
@@ -31,8 +31,8 @@ dotnet pack src/FaultLens.Sdk/FaultLens.Sdk.csproj -c Release -o .\.nupkg
 Expected outputs:
 
 ```text
-.\.nupkg\FaultLens.SDK.0.1.0-beta.2.nupkg
-.\.nupkg\FaultLens.SDK.0.1.0-beta.2.snupkg
+.\.nupkg\FaultLens.SDK.1.0.0.nupkg
+.\.nupkg\FaultLens.SDK.1.0.0.snupkg
 ```
 
 ## Validate with the local machine feed
@@ -43,7 +43,7 @@ Pack the SDK, copy the release-candidate package into the configured local feed,
 
 ```bash
 dotnet pack src/FaultLens.Sdk/FaultLens.Sdk.csproj -c Release -o .\.nupkg
-copy .\.nupkg\FaultLens.SDK.0.1.0-beta.2.nupkg <machine-local-nuget-feed>
+copy .\.nupkg\FaultLens.SDK.1.0.0.nupkg <machine-local-nuget-feed>
 dotnet nuget locals all --clear
 cd ..\faultlens-dotnet-samples
 dotnet restore
@@ -53,10 +53,10 @@ dotnet build
 The sample project should keep a normal package reference that matches the intended public release candidate:
 
 ```xml
-<PackageReference Include="FaultLens.SDK" Version="0.1.0-beta.2" />
+<PackageReference Include="FaultLens.SDK" Version="1.0.0" />
 ```
 
-If `0.1.0-beta.2` is already published on NuGet.org before this validation pass, bump the SDK package version first and validate with the new intended release version, such as `0.1.0-beta.3`, to avoid source/cache ambiguity.
+If `1.0.0` is already published on NuGet.org before this validation pass, do not overwrite it. Choose the next intended release version and validate that exact version to avoid source/cache ambiguity.
 
 Optional minimal `Program.cs` smoke check:
 
@@ -68,9 +68,9 @@ using var client = new FaultLensClient(
     new FaultLensOptions(
         apiKey: "local-package-smoke-test",
         environment: "local",
-        release: "0.1.0-beta.2",
+        release: "1.0.0",
         serviceName: "package-smoke",
-        serviceVersion: "0.1.0-beta.2"));
+        serviceVersion: "1.0.0"));
 
 client.CaptureMessage("FaultLens local package smoke test");
 client.Flush(TimeSpan.FromSeconds(1));
@@ -87,7 +87,7 @@ Publishing or installing from a local NuGet source does not reserve the public N
 After final metadata review and local package validation:
 
 ```bash
-dotnet nuget push .\.nupkg\FaultLens.SDK.0.1.0-beta.1.nupkg --api-key <NUGET_API_KEY> --source https://api.nuget.org/v3/index.json
+dotnet nuget push .\.nupkg\FaultLens.SDK.1.0.0.nupkg --api-key <NUGET_API_KEY> --source https://api.nuget.org/v3/index.json
 ```
 
 Do not push the `.snupkg` separately unless the NuGet symbol push workflow requires it for the configured account; modern `dotnet nuget push` handles symbols for standard NuGet.org package pushes.
@@ -95,7 +95,7 @@ Do not push the `.snupkg` separately unless the NuGet symbol push workflow requi
 ## Pre-publish checklist
 
 - `PackageId` is `FaultLens.SDK`
-- `Version` is `0.1.0-beta.2`
+- `Version` is `1.0.0`
 - package is marked packable
 - `GeneratePackageOnBuild` is `false`
 - symbols are enabled with `snupkg`

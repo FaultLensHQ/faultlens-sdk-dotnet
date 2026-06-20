@@ -33,7 +33,7 @@ samples/
 
 | Layer | Choice |
 |---|---|
-| Package | `FaultLens.SDK` v0.1.0-beta.1 |
+| Package | `FaultLens.SDK` v1.0.0 |
 | Target | `netstandard2.1` |
 | Language | C# 8.0 |
 | Testing | xUnit + FluentAssertions (net10.0) |

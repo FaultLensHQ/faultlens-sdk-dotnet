@@ -8,10 +8,15 @@
 
 		<!-- Package Identity -->
 		<PackageId>FaultLens.SDK</PackageId>
-		<Version>0.1.0-beta.2</Version>
+		<Version>1.0.0</Version>
 		<Authors>FaultLens</Authors>
 		<Company>FaultLens</Company>
 		<IsPackable>true</IsPackable>
+		<PackageReleaseNotes>
+			* Initial stable release of the official FaultLens .NET SDK.
+			* Includes error capture, environment and release context, service name/version context, account and user identity context, anonymous identity support, correlation ID support, breadcrumbs, tags, request context, and safe contextual diagnostics for FaultLens.
+			* ASP.NET Core automatic middleware/header capture is not included in this release; use the request scope/manual capture APIs for request context.
+        </PackageReleaseNotes>
 
 		<!-- Package Metadata -->
 		<Description>Official FaultLens .NET SDK for capturing and sending application errors and diagnostics to FaultLens.</Description>
