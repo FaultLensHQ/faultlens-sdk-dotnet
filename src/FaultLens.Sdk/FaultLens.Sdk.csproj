@@ -8,23 +8,30 @@
 
 		<!-- Package Identity -->
 		<PackageId>FaultLens.SDK</PackageId>
-		<Version>1.0.0</Version>
+		<Version>1.0.1</Version>
+		<PackageVersion>1.0.1</PackageVersion>
+		<AssemblyVersion>1.0.1.0</AssemblyVersion>
+		<FileVersion>1.0.1.0</FileVersion>
+		<InformationalVersion>1.0.1</InformationalVersion>
 		<Authors>FaultLens</Authors>
 		<Company>FaultLens</Company>
 		<IsPackable>true</IsPackable>
 		<PackageReleaseNotes>
-			* Initial stable release of the official FaultLens .NET SDK.
-			* Includes error capture, environment and release context, service name/version context, account and user identity context, anonymous identity support, correlation ID support, breadcrumbs, tags, request context, and safe contextual diagnostics for FaultLens.
-			* ASP.NET Core automatic middleware/header capture is not included in this release; use the request scope/manual capture APIs for request context.
-        </PackageReleaseNotes>
+* Package quality patch release for FaultLens.SDK.
+* Adds Source Link and symbols package support for improved debugging experience.
+* Enables deterministic build metadata for improved package reproducibility.
+* Adds/validates package project URL metadata for https://faultlens.in/.
+* No public SDK API changes from 1.0.0.
+		</PackageReleaseNotes>
 
 		<!-- Package Metadata -->
 		<Description>Official FaultLens .NET SDK for capturing and sending application errors and diagnostics to FaultLens.</Description>
 		<PackageTags>faultlens;monitoring;observability;errors;diagnostics;dotnet</PackageTags>
-		<PackageProjectUrl>https://faultlens.in</PackageProjectUrl>
+		<PackageProjectUrl>https://faultlens.in/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/FaultLensHQ/faultlens-sdk-dotnet</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 
@@ -35,6 +42,8 @@
 		<Nullable>disable</Nullable>
 
 		<!-- Deterministic & Safe -->
+		<Deterministic>true</Deterministic>
+		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 	</PropertyGroup>
 
@@ -45,6 +54,7 @@
 	<ItemGroup>
 	  <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="10.0.0" />
 	  <PackageReference Include="System.Text.Json" Version="10.0.1" />
+	  <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 	</ItemGroup>
 
 	<ItemGroup>
