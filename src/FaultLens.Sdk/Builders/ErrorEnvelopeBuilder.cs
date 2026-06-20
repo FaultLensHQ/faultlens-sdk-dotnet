@@ -16,6 +16,14 @@ namespace FaultLens.Sdk.Builders
         private RequestContextInfo _requestContext;
         private ClientContextInfo _clientContext;
         private string _userId;
+        private string _serviceName;
+        private string _serviceVersion;
+        private string _tenantId;
+        private string _customerId;
+        private string _accountId;
+        private string _anonymousId;
+        private string _correlationId;
+        private bool _useConfiguredIdentity = true;
         private IReadOnlyDictionary<string, string> _tags;
 
         public ErrorEnvelopeBuilder(FaultLensOptions options, SdkInfo sdk)
@@ -73,6 +81,27 @@ namespace FaultLens.Sdk.Builders
             return this;
         }
 
+        public ErrorEnvelopeBuilder WithContext(
+            string serviceName = null,
+            string serviceVersion = null,
+            string tenantId = null,
+            string customerId = null,
+            string accountId = null,
+            string anonymousId = null,
+            string correlationId = null,
+            bool useConfiguredIdentity = true)
+        {
+            _serviceName = serviceName;
+            _serviceVersion = serviceVersion;
+            _tenantId = tenantId;
+            _customerId = customerId;
+            _accountId = accountId;
+            _anonymousId = anonymousId;
+            _correlationId = correlationId;
+            _useConfiguredIdentity = useConfiguredIdentity;
+            return this;
+        }
+
         public ErrorEnvelopeBuilder WithTags(IReadOnlyDictionary<string, string> tags)
         {
             _tags = tags;
@@ -85,6 +114,23 @@ namespace FaultLens.Sdk.Builders
 
         public ErrorEnvelopeV1 Build()
         {
+            var tenantId = _useConfiguredIdentity
+                ? FirstNonBlank(_tenantId, _options.TenantId)
+                : FirstNonBlank(_tenantId);
+            var customerId = _useConfiguredIdentity
+                ? FirstNonBlank(_customerId, _options.CustomerId)
+                : FirstNonBlank(_customerId);
+            var accountId = _useConfiguredIdentity
+                ? FirstNonBlank(_accountId, _options.AccountId, _tenantId, _options.TenantId)
+                : FirstNonBlank(_accountId, _tenantId);
+            var userId = FirstNonBlank(_userId);
+            var anonymousId = _useConfiguredIdentity
+                ? FirstNonBlank(_anonymousId, _options.AnonymousId)
+                : FirstNonBlank(_anonymousId);
+
+            if (FirstNonBlank(userId, tenantId, customerId, accountId) != null)
+                anonymousId = null;
+
             return new ErrorEnvelopeV1(
                 eventId: Guid.NewGuid().ToString("N"),
                 timestamp: DateTimeOffset.UtcNow,
@@ -97,7 +143,14 @@ namespace FaultLens.Sdk.Builders
                 breadcrumbs: _breadcrumbs,
                 request: _requestContext,
                 client: _clientContext,
-                userId: _userId,
+                userId: userId,
+                serviceName: FirstNonBlank(_serviceName, _options.ServiceName),
+                serviceVersion: FirstNonBlank(_serviceVersion, _options.ServiceVersion),
+                tenantId: tenantId,
+                customerId: customerId,
+                accountId: accountId,
+                anonymousId: anonymousId,
+                correlationId: FirstNonBlank(_correlationId, _options.CorrelationId),
                 tags: _tags
             );
         }
@@ -130,6 +183,17 @@ namespace FaultLens.Sdk.Builders
                 message: exception.Message,
                 stacktrace: frames
             );
+        }
+
+        private static string FirstNonBlank(params string[] values)
+        {
+            foreach (var value in values)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                    return value.Trim();
+            }
+
+            return null;
         }
     }
 }

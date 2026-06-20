@@ -17,6 +17,7 @@
 		<Description>Official FaultLens .NET SDK for capturing and sending application errors and diagnostics to FaultLens.</Description>
 		<PackageTags>faultlens;monitoring;observability;errors;diagnostics;dotnet</PackageTags>
 		<PackageProjectUrl>https://faultlens.in</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/FaultLensHQ/faultlens-sdk-dotnet</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>

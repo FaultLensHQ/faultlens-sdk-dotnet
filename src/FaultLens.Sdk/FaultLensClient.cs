@@ -124,7 +124,12 @@ namespace FaultLens.Sdk
             if (string.IsNullOrWhiteSpace(normalizedRoute))
                 normalizedRoute = "/";
 
-            var state = new RequestScopeState(normalizedMethod, normalizedRoute, BreadcrumbSanitizer.SanitizeSource(source));
+            var state = new RequestScopeState(
+                normalizedMethod,
+                normalizedRoute,
+                BreadcrumbSanitizer.SanitizeSource(source),
+                FirstNonBlank(ExtractCorrelationId(data), _options.CorrelationId, TryGetCorrelationKey()));
+            state.RequestId = ExtractRequestId(data);
             _requestScope.Value = state;
 
             AddBreadcrumb(new Breadcrumb
@@ -141,6 +146,8 @@ namespace FaultLens.Sdk
                     {
                         ["method"] = normalizedMethod,
                         ["route"] = normalizedRoute,
+                        ["requestId"] = state.RequestId,
+                        ["correlationId"] = state.CorrelationId,
                         ["traceId"] = TryGetCorrelationKey()
                     })
             });
@@ -155,9 +162,8 @@ namespace FaultLens.Sdk
 
             _executor.Execute(() =>
             {
-                EnsureRequestFailedBreadcrumb(exception);
-
                 var scopeState = _requestScope.Value;
+                EnsureRequestFailedBreadcrumb(exception);
                 var envelope = _envelopeBuilder
                     .WithException(exception)
                     .WithFingerprint(fingerprint)
@@ -165,6 +171,13 @@ namespace FaultLens.Sdk
                     .WithRequestContext(BuildRequestContext(scopeState))
                     .WithClientContext(BuildClientContext(scopeState?.UserAgent))
                     .WithUserId(scopeState?.UserId)
+                    .WithContext(
+                        tenantId: scopeState?.TenantId,
+                        customerId: scopeState?.CustomerId,
+                        accountId: scopeState?.AccountId,
+                        anonymousId: scopeState?.AnonymousId,
+                        correlationId: scopeState?.CorrelationId,
+                        useConfiguredIdentity: scopeState == null || !scopeState.HasIdentityOverride)
                     .WithTags(GetScopeTags(scopeState))
                     .Build();
 
@@ -187,6 +200,13 @@ namespace FaultLens.Sdk
                     .WithRequestContext(BuildRequestContext(scopeState))
                     .WithClientContext(BuildClientContext(scopeState?.UserAgent))
                     .WithUserId(scopeState?.UserId)
+                    .WithContext(
+                        tenantId: scopeState?.TenantId,
+                        customerId: scopeState?.CustomerId,
+                        accountId: scopeState?.AccountId,
+                        anonymousId: scopeState?.AnonymousId,
+                        correlationId: scopeState?.CorrelationId,
+                        useConfiguredIdentity: scopeState == null || !scopeState.HasIdentityOverride)
                     .WithTags(GetScopeTags(scopeState))
                     .Build();
 
@@ -321,11 +341,15 @@ namespace FaultLens.Sdk
                     {
                         ["method"] = state.Method,
                         ["route"] = state.Route,
+                        ["requestId"] = state.RequestId,
                         ["statusCode"] = statusCode,
                         ["durationMs"] = state.Stopwatch.ElapsedMilliseconds,
+                        ["correlationId"] = state.CorrelationId,
                         ["traceId"] = TryGetCorrelationKey()
                     })
             });
+            state.StatusCode = statusCode;
+            state.DurationMs = state.Stopwatch.ElapsedMilliseconds;
 
             if (ReferenceEquals(_requestScope.Value, state))
                 _requestScope.Value = null;
@@ -351,12 +375,16 @@ namespace FaultLens.Sdk
                     {
                         ["method"] = state.Method,
                         ["route"] = state.Route,
+                        ["requestId"] = state.RequestId,
                         ["statusCode"] = statusCode,
                         ["durationMs"] = state.Stopwatch.ElapsedMilliseconds,
+                        ["correlationId"] = state.CorrelationId,
                         ["traceId"] = TryGetCorrelationKey(),
                         ["exceptionType"] = exception == null ? null : exception.GetType().FullName
                     })
             });
+            state.StatusCode = statusCode;
+            state.DurationMs = state.Stopwatch.ElapsedMilliseconds;
 
             if (ReferenceEquals(_requestScope.Value, state))
                 _requestScope.Value = null;
@@ -411,6 +439,51 @@ namespace FaultLens.Sdk
             return string.IsNullOrWhiteSpace(activity.Id) ? null : activity.Id;
         }
 
+        private static string ExtractCorrelationId(IReadOnlyDictionary<string, object> data)
+        {
+            return FirstNonBlank(
+                ReadObjectValue(data, "X-Correlation-ID"),
+                ReadObjectValue(data, "x-correlation-id"),
+                ReadObjectValue(data, "correlationId"),
+                ReadObjectValue(data, "correlation_id"));
+        }
+
+        private static string ExtractRequestId(IReadOnlyDictionary<string, object> data)
+        {
+            return FirstNonBlank(
+                ReadObjectValue(data, "requestId"),
+                ReadObjectValue(data, "request_id"),
+                ReadObjectValue(data, "traceId"),
+                ReadObjectValue(data, "trace_id"));
+        }
+
+        private static string ReadObjectValue(IReadOnlyDictionary<string, object> data, string key)
+        {
+            if (data == null || string.IsNullOrWhiteSpace(key))
+                return null;
+
+            object value;
+            if (!data.TryGetValue(key, out value) || value == null)
+                return null;
+
+            var text = value.ToString();
+            return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+        }
+
+        private static string FirstNonBlank(params string[] values)
+        {
+            if (values == null)
+                return null;
+
+            foreach (var value in values)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                    return value.Trim();
+            }
+
+            return null;
+        }
+
         private static string ToLayer(BreadcrumbLayer layer)
         {
             switch (layer)
@@ -447,7 +520,7 @@ namespace FaultLens.Sdk
 
         private static RequestContextInfo BuildRequestContext(RequestScopeState state)
         {
-            if (state == null || (state.Url == null && state.QueryString == null && state.Referrer == null))
+            if (state == null)
                 return null;
 
             return new RequestContextInfo(
@@ -455,7 +528,12 @@ namespace FaultLens.Sdk
                 method: state.Method,
                 route: state.Route,
                 queryString: state.QueryString,
-                referrer: state.Referrer
+                referrer: state.Referrer,
+                statusCode: state.StatusCode,
+                durationMs: state.DurationMs,
+                requestId: state.RequestId,
+                correlationId: state.CorrelationId,
+                traceId: TryGetCorrelationKey()
             );
         }
 
@@ -518,12 +596,105 @@ namespace FaultLens.Sdk
 
             public void SetUserId(string userId)
             {
-                _state.UserId = string.IsNullOrWhiteSpace(userId) ? null : userId.Trim();
+                SetUser(userId);
+            }
+
+            public void SetUser(string userId)
+            {
+                var normalizedUserId = Normalize(userId);
+                _state.UserId = normalizedUserId;
+
+                if (normalizedUserId != null)
+                {
+                    _state.HasIdentityOverride = true;
+                    ClearAnonymousIdentity();
+                }
+            }
+
+            public void SetAnonymousId(string anonymousId)
+            {
+                var normalizedAnonymousId = Normalize(anonymousId);
+                _state.AnonymousId = normalizedAnonymousId;
+                _state.HasIdentityOverride = true;
+
+                if (normalizedAnonymousId != null)
+                    ClearKnownIdentity();
+            }
+
+            public void SetAccount(string accountId, string tenantId = null)
+            {
+                var normalizedAccountId = Normalize(accountId);
+                var normalizedTenantId = Normalize(tenantId);
+
+                _state.AccountId = normalizedAccountId;
+                _state.TenantId = normalizedTenantId;
+                _state.CustomerId = null;
+
+                if (normalizedAccountId != null || normalizedTenantId != null)
+                {
+                    _state.HasIdentityOverride = true;
+                    ClearAnonymousIdentity();
+                }
+            }
+
+            public void Identify(string userId = null, string accountId = null, string tenantId = null)
+            {
+                var normalizedUserId = Normalize(userId);
+                var normalizedAccountId = Normalize(accountId);
+                var normalizedTenantId = Normalize(tenantId);
+
+                _state.UserId = normalizedUserId;
+                _state.AccountId = normalizedAccountId;
+                _state.TenantId = normalizedTenantId;
+                _state.CustomerId = null;
+
+                if (normalizedUserId != null || normalizedAccountId != null || normalizedTenantId != null)
+                {
+                    _state.HasIdentityOverride = true;
+                    ClearAnonymousIdentity();
+                }
+            }
+
+            [Obsolete("Use SetAccount(accountId, tenantId) and SetUser(userId). CustomerId remains payload-compatible but is not the recommended public identity API.")]
+            public void SetCustomer(string tenantId = null, string customerId = null, string accountId = null)
+            {
+                _state.TenantId = Normalize(tenantId);
+                _state.CustomerId = Normalize(customerId);
+                _state.AccountId = Normalize(accountId);
+
+                if (_state.TenantId != null || _state.CustomerId != null || _state.AccountId != null)
+                {
+                    _state.HasIdentityOverride = true;
+                    ClearAnonymousIdentity();
+                }
+            }
+
+            public void SetCorrelationId(string correlationId)
+            {
+                _state.CorrelationId = Normalize(correlationId);
             }
 
             public void SetTag(string key, string value)
             {
                 _state.AddTag(key, value);
+            }
+
+            private static string Normalize(string value)
+            {
+                return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+            }
+
+            private void ClearKnownIdentity()
+            {
+                _state.UserId = null;
+                _state.TenantId = null;
+                _state.CustomerId = null;
+                _state.AccountId = null;
+            }
+
+            private void ClearAnonymousIdentity()
+            {
+                _state.AnonymousId = null;
             }
 
             public void Dispose()
@@ -544,6 +715,47 @@ namespace FaultLens.Sdk
             {
             }
 
+            public void SetRequestContext(
+                string url,
+                string referrer = null,
+                string userAgent = null,
+                string queryString = null)
+            {
+            }
+
+            public void SetUserId(string userId)
+            {
+            }
+
+            public void SetUser(string userId)
+            {
+            }
+
+            public void SetAnonymousId(string anonymousId)
+            {
+            }
+
+            public void SetAccount(string accountId, string tenantId = null)
+            {
+            }
+
+            public void Identify(string userId = null, string accountId = null, string tenantId = null)
+            {
+            }
+
+            [Obsolete("Use SetAccount(accountId, tenantId) and SetUser(userId). CustomerId remains payload-compatible but is not the recommended public identity API.")]
+            public void SetCustomer(string tenantId = null, string customerId = null, string accountId = null)
+            {
+            }
+
+            public void SetCorrelationId(string correlationId)
+            {
+            }
+
+            public void SetTag(string key, string value)
+            {
+            }
+
             public void Dispose()
             {
             }
@@ -553,11 +765,12 @@ namespace FaultLens.Sdk
         {
             private Dictionary<string, string> _tags;
 
-            public RequestScopeState(string method, string route, string source)
+            public RequestScopeState(string method, string route, string source, string correlationId)
             {
                 Method = method;
                 Route = route;
                 Source = source;
+                CorrelationId = correlationId;
                 Stopwatch = Stopwatch.StartNew();
             }
 
@@ -582,6 +795,24 @@ namespace FaultLens.Sdk
             public string UserAgent { get; set; }
 
             public string UserId { get; set; }
+
+            public string AnonymousId { get; set; }
+
+            public string TenantId { get; set; }
+
+            public string CustomerId { get; set; }
+
+            public string AccountId { get; set; }
+
+            public string CorrelationId { get; set; }
+
+            public string RequestId { get; set; }
+
+            public int? StatusCode { get; set; }
+
+            public double? DurationMs { get; set; }
+
+            public bool HasIdentityOverride { get; set; }
 
             public void AddTag(string key, string value)
             {

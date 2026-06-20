@@ -50,6 +50,34 @@ namespace FaultLens.Sdk.Envelopes
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string UserId { get; }
 
+        [JsonPropertyName("serviceName")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string ServiceName { get; }
+
+        [JsonPropertyName("serviceVersion")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string ServiceVersion { get; }
+
+        [JsonPropertyName("tenantId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string TenantId { get; }
+
+        [JsonPropertyName("customerId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string CustomerId { get; }
+
+        [JsonPropertyName("accountId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string AccountId { get; }
+
+        [JsonPropertyName("anonymousId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string AnonymousId { get; }
+
+        [JsonPropertyName("correlationId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string CorrelationId { get; }
+
         [JsonPropertyName("tags")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public IReadOnlyDictionary<string, string> Tags { get; }
@@ -67,6 +95,13 @@ namespace FaultLens.Sdk.Envelopes
             RequestContextInfo request = null,
             ClientContextInfo client = null,
             string userId = null,
+            string serviceName = null,
+            string serviceVersion = null,
+            string tenantId = null,
+            string customerId = null,
+            string accountId = null,
+            string anonymousId = null,
+            string correlationId = null,
             IReadOnlyDictionary<string, string> tags = null)
         {
             if (string.IsNullOrWhiteSpace(eventId))
@@ -88,6 +123,13 @@ namespace FaultLens.Sdk.Envelopes
             Request = request;
             Client = client;
             UserId = userId;
+            ServiceName = serviceName;
+            ServiceVersion = serviceVersion;
+            TenantId = tenantId;
+            CustomerId = customerId;
+            AccountId = accountId;
+            AnonymousId = anonymousId;
+            CorrelationId = correlationId;
             Tags = tags;
         }
     }

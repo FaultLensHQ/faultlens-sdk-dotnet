@@ -2,65 +2,37 @@
 
 `FaultLens.SDK` is the official .NET client package for capturing application errors, diagnostic breadcrumbs, and request context, then sending them to FaultLens for investigation.
 
-FaultLens is a focused multi-tenant SaaS product for diagnosing production issues faster.
-
-Current platform truth:
-
-- Brand: `FaultLens`
-- Website: `faultlens.in`
-- NuGet organization: `FaultLens`
-- NuGet package: `FaultLens.SDK`
-- NuGet prefix request: `FaultLens.*`
-- npm organization: `faultlenshq`
-- npm scope: `@faultlenshq`
-- Production marketing is live at `faultlens.in`.
-- The real multi-tenant SaaS product is not live in production yet.
-- Staging is live and is the active validation environment.
-
-This package is designed to be:
-
-- non-blocking in application code paths
-- safe by default, with capture methods that do not throw user-visible exceptions
-- lightweight and usable from plain .NET applications
-- independent of ASP.NET Core-specific dependency injection or middleware
-
-## Prerelease Notice
-
-`0.1.0-beta.2` is a prerelease package. The core capture and serialization contracts are available for early integration testing, but APIs may still change before a stable `1.0` release.
-
-### What's new in 0.1.0-beta.2
-
-- **Request context**: `scope.SetRequestContext(url, referrer, userAgent)` — captures HTTP request URL, referrer, and user agent in the event payload
-- **User identity**: `scope.SetUserId(userId)` — associates the authenticated user with an event
-- **Tags**: `scope.SetTag(key, value)` — adds arbitrary key/value labels for filtering
-
-## Requirements
-
-- a .NET application that can consume `netstandard2.1`
-- a FaultLens project API key
-- network access from your application to the FaultLens ingest endpoint
+Version `1.0.0` is the stable release of the SDK package.
 
 ## Install
 
-```bash
-dotnet add package FaultLens.SDK --version 0.1.0-beta.2
+```powershell
+dotnet add package FaultLens.SDK --version 1.0.0
 ```
 
 ## Quick Start
+
+Create the client from configuration or environment values. Do not hardcode production API keys in source control.
 
 ```csharp
 using System;
 using FaultLens.Sdk;
 
+var apiKey = Environment.GetEnvironmentVariable("FAULTLENS_API_KEY");
+var endpoint = Environment.GetEnvironmentVariable("FAULTLENS_ENDPOINT");
+
 using var client = new FaultLensClient(
     new FaultLensOptions(
-        apiKey: "YOUR_PROJECT_API_KEY",
+        apiKey: apiKey,
+        endpoint: new Uri(endpoint),
         environment: "production",
-        release: "1.0.0"));
+        release: "v1.8.4",
+        serviceName: "checkout-api",
+        serviceVersion: "2026.06.19"));
 
 try
 {
-    throw new InvalidOperationException("Something broke");
+    throw new InvalidOperationException("Payment provider timeout");
 }
 catch (Exception ex)
 {
@@ -70,36 +42,7 @@ catch (Exception ex)
 client.Flush(TimeSpan.FromSeconds(2));
 ```
 
-## Configuration
-
-`FaultLensOptions` is the main setup entry point.
-
-```csharp
-var options = new FaultLensOptions(
-    apiKey: "YOUR_PROJECT_API_KEY",
-    environment: "production",
-    release: "1.0.0",
-    endpoint: new Uri("https://api.faultlens.io"),
-    breadcrumbCapacity: 40);
-```
-
-Options:
-
-- `apiKey`: required project API key from FaultLens
-- `environment`: environment label such as `production` or `staging`
-- `release`: optional release or build version
-- `endpoint`: optional override for non-default FaultLens API environments. Use the staging ingest/API endpoint during staging validation until the production SaaS is explicitly live.
-- `breadcrumbCapacity`: maximum in-memory breadcrumbs retained before capture
-
-Default endpoint:
-
-```text
-https://api.faultlens.io
-```
-
-Note: this default endpoint is legacy SDK-package behavior until the hosted product endpoint strategy is finalized. Do not infer production SaaS availability from this default.
-
-## Capturing Errors
+## Basic Capture
 
 Capture an exception:
 
@@ -107,52 +50,46 @@ Capture an exception:
 client.CaptureException(ex);
 ```
 
-Capture an exception with a custom fingerprint:
+Capture a message:
+
+```csharp
+client.CaptureMessage("Unexpected checkout state reached");
+```
+
+Capture with a stable fingerprint:
 
 ```csharp
 client.CaptureException(
     ex,
-    fingerprint: "payment-timeout");
+    fingerprint: "payment-provider-timeout");
 ```
 
-Capture a message:
+Use `Flush(...)` during shutdown or short-lived command-line runs to give queued events time to send.
+
+## Request Scopes
+
+Use a request scope to attach route, method, request status, duration, request ID, correlation ID, and breadcrumbs to events captured during a logical operation.
 
 ```csharp
-client.CaptureMessage("Unexpected state reached");
-```
-
-Capture with optional delivery feedback:
-
-```csharp
-client.CaptureMessage(
-    "Cache miss threshold exceeded",
-    callback: result =>
+using (var scope = client.BeginRequest(
+    method: "POST",
+    route: "/api/orders",
+    data: new Dictionary<string, object>
     {
-        if (!result.Success)
-        {
-            Console.WriteLine($"{result.ErrorCode}: {result.ErrorMessage}");
-        }
-    });
-```
-
-## Breadcrumbs
-
-Add breadcrumbs before capture to preserve the path that led to an error:
-
-```csharp
-client.AddStep("checkout", "Payment flow started");
-client.AddDecision("checkout", "Retrying gateway call");
-```
-
-Use a request scope to capture request lifecycle breadcrumbs:
-
-```csharp
-using (var scope = client.BeginRequest("GET", "/orders/{id}"))
+        ["requestId"] = "req_123",
+        ["X-Correlation-ID"] = "corr_456"
+    }))
 {
+    scope.SetRequestContext(
+        url: "https://api.example.com/api/orders",
+        referrer: "https://app.example.com/cart",
+        userAgent: "Mozilla/5.0");
+    scope.SetCorrelationId("corr_456");
+
     try
     {
         // request work
-        scope.Complete(statusCode: 200);
+        scope.Complete(statusCode: 201);
     }
     catch (Exception ex)
     {
@@ -162,12 +99,102 @@ using (var scope = client.BeginRequest("GET", "/orders/{id}"))
 }
 ```
 
+Add breadcrumbs before capture to preserve the path that led to an event:
+
+```csharp
+client.AddStep("checkout", "Payment flow started");
+client.AddDecision("checkout", "Retrying provider call");
+```
+
+## Identity And Context
+
+Use opaque, non-sensitive identifiers:
+
+- `anonymousId`: unauthenticated visitor or session identifier
+- `accountId`: business or customer account affected by the event
+- `tenantId`: SaaS tenant, workspace, org, or runtime tenant
+- `userId`: known user inside the account
+
+Anonymous visitor/session:
+
+```csharp
+using (var scope = client.BeginRequest("GET", "/landing"))
+{
+    scope.SetAnonymousId("anon_abc123");
+    client.CaptureMessage("Anonymous landing-page activity");
+}
+```
+
+Known account and user:
+
+```csharp
+using (var scope = client.BeginRequest("POST", "/api/orders"))
+{
+    scope.SetAccount(
+        accountId: "acct_1318",
+        tenantId: "tenant_42");
+    scope.SetUser("user_9482");
+
+    client.CaptureMessage("Order submitted");
+}
+```
+
+Set known identity in one call:
+
+```csharp
+scope.Identify(
+    userId: "user_9482",
+    accountId: "acct_1318",
+    tenantId: "tenant_42");
+```
+
+Identity behavior is mutually exclusive within an active scope:
+
+- calling `SetAnonymousId(...)` clears known account/user identity for that scope
+- calling `SetAccount(...)`, `SetUser(...)`, or `Identify(...)` clears `anonymousId` for that scope
+- the SDK does not intentionally emit `anonymousId` together with known account/user identity in one active scope
+
+Compatibility note: `SetCustomer(...)` remains for older integrations, but it is obsolete. Prefer `SetAccount(...)`, `SetUser(...)`, or `Identify(...)`. Public SDK examples use `accountId` so users do not need to choose between `customerId` and `accountId`.
+
+## Tags
+
+Tags are for extra custom metadata, not primary account/user/service identity.
+
+Good tag examples:
+
+- feature flag
+- plan tier
+- queue name
+- payment provider
+- safe demo scenario
+
+```csharp
+scope.SetTag("planTier", "enterprise");
+scope.SetTag("paymentProvider", "stripe");
+```
+
+Do not put secrets or sensitive PII in tags. Avoid names, emails, phone numbers, raw tokens, API keys, authorization headers, cookies, payment card data, full request bodies, or connection strings.
+
+## Release And Environment
+
+Use stable environment labels such as `production`, `staging`, or `development`.
+
+Use `release` and `serviceVersion` to help FaultLens group events observed after deployment, issues first seen after deployment, and release-adjacent changes. The SDK does not claim that a release caused an error.
+
+## ASP.NET Core Support
+
+This SDK currently supports manual/request-scope capture through `BeginRequest(...)` and `IFaultLensRequestScope`.
+
+It does not install ASP.NET Core middleware, does not register `IHttpClientFactory`, and does not automatically capture framework HTTP headers. Pass request IDs, correlation IDs, route data, and safe request context explicitly through request scopes.
+
+Automatic ASP.NET Core middleware/header capture is a future integration follow-up.
+
 ## Delivery Behavior
 
 - capture methods do not block application flow
-- events are delivered asynchronously
+- SDK delivery failures do not throw into normal application code paths
 - delivery callbacks are optional and advisory
-- `Flush(...)` provides a bounded shutdown drain when needed
+- `Flush(...)` provides a bounded drain for shutdown and short-lived processes
 
 Possible `DeliveryResult.ErrorCode` values:
 
@@ -177,14 +204,17 @@ Possible `DeliveryResult.ErrorCode` values:
 - `serialization_failed`
 - `unknown`
 
+## Troubleshooting
+
+- Wrong endpoint: verify `FAULTLENS_ENDPOINT` points to the correct FaultLens ingest/API endpoint for your workspace.
+- Invalid or missing API key: verify `FAULTLENS_API_KEY` is configured and belongs to the project you expect.
+- Network/firewall issue: confirm the host application can reach the configured endpoint over HTTPS.
+- No events visible: make sure the code path actually calls `CaptureException(...)` or `CaptureMessage(...)`; for short-lived apps, call `Flush(...)` before exit.
+- Local dev vs production confusion: check the configured `environment` value and filters in FaultLens.
+
 ## Compatibility
 
 - target framework: `netstandard2.1`
 - C# language version: `8.0`
-- no ASP.NET Core dependency
-- no `IHttpClientFactory` dependency
-- no Polly dependency
-
-## Package Namespace
-
-The NuGet package ID is `FaultLens.SDK`; the code namespace is `FaultLens.Sdk`.
+- NuGet package ID: `FaultLens.SDK`
+- code namespace: `FaultLens.Sdk`
