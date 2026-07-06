@@ -36,5 +36,18 @@ namespace FaultLens.Sdk
         void SetCorrelationId(string correlationId) { }
 
         void SetTag(string key, string value) { }
+
+        /// <summary>
+        /// Marks this request as belonging to an explicit business capability so FaultLens can use
+        /// it as a trusted severity signal. Convenience over <see cref="SetTag"/> with the
+        /// <see cref="FaultLensReservedTags"/> keys; criticality should be one of
+        /// <see cref="FaultLensCriticality"/> — other values are ignored by the backend.
+        /// </summary>
+        void SetCapability(string capability, string criticality = null, string operation = null)
+        {
+            if (!string.IsNullOrWhiteSpace(capability)) SetTag(FaultLensReservedTags.Capability, capability);
+            if (!string.IsNullOrWhiteSpace(criticality)) SetTag(FaultLensReservedTags.Criticality, criticality);
+            if (!string.IsNullOrWhiteSpace(operation)) SetTag(FaultLensReservedTags.Operation, operation);
+        }
     }
 }
