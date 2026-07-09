@@ -111,7 +111,7 @@ The package namespace remains `FaultLens.Sdk`; the public NuGet package ID is `F
 
 Official NuGet.org publishing must run from GitHub Actions, not a developer machine.
 
-Preferred authentication is NuGet Trusted Publishing from GitHub Actions. Configure a trusted publisher in the NuGet.org FaultLens organization before pushing the release tag.
+Preferred authentication is NuGet Trusted Publishing from GitHub Actions. Configure a trusted publisher in the NuGet.org FaultLens organization before pushing the release tag. The workflow uses `NuGet/login@v1` to exchange the GitHub OIDC token for a temporary NuGet API key, then passes that temporary key to `dotnet nuget push`.
 
 Trusted Publishing policy values:
 
@@ -139,7 +139,7 @@ git push origin sdk-v1.1.0
 3. Confirm the `Publish FaultLens SDK to NuGet.org` workflow completes successfully.
 4. Confirm both `FaultLens.SDK.1.1.0.nupkg` and `FaultLens.SDK.1.1.0.snupkg` are available from the workflow artifacts and NuGet.org package page.
 
-The workflow is triggered only by tags matching `sdk-v*.*.*`. It validates that the tag version matches the project `PackageVersion`, restores, builds, tests, packs, verifies `.nupkg` and `.snupkg`, uploads artifacts, then publishes both packages to NuGet.org through GitHub Actions OIDC / NuGet Trusted Publishing.
+The workflow is triggered only by tags matching `sdk-v*.*.*`. It validates that the tag version matches the project `PackageVersion`, restores, builds, tests, packs, verifies `.nupkg` and `.snupkg`, uploads artifacts, logs in to NuGet.org through GitHub Actions OIDC / NuGet Trusted Publishing, then publishes both packages using the temporary API key returned by `NuGet/login@v1`.
 
 Emergency manual upload command, only if Trusted Publishing or GitHub Actions is unavailable and explicit approval is given:
 
