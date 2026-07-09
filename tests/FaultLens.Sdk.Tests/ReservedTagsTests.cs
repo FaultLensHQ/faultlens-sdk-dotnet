@@ -128,13 +128,13 @@ namespace FaultLens.Sdk.Tests
 
         private sealed class RecordingTransport : IEventTransport
         {
-            public ErrorEnvelopeV1 LastEnvelope { get; private set; }
+            public ErrorEnvelopeV1 LastEnvelope { get; private set; } = null!;
 
             public void Dispose() { }
 
             public void Flush(TimeSpan timeout) { }
 
-            public void Send(ErrorEnvelopeV1 envelope, Action<DeliveryResult> callback = null)
+            public void Send(ErrorEnvelopeV1 envelope, Action<DeliveryResult> callback = null!)
             {
                 LastEnvelope = envelope;
                 callback?.Invoke(DeliveryResult.Delivered());

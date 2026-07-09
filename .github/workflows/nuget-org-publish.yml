@@ -1,0 +1,111 @@
+name: Publish FaultLens SDK to NuGet.org
+
+on:
+  push:
+    tags:
+      - "sdk-v*.*.*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Validate tag matches package version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tag_version="${GITHUB_REF_NAME#sdk-v}"
+          package_version="$(grep -m1 '<PackageVersion>' src/FaultLens.Sdk/FaultLens.Sdk.csproj | sed -E 's/.*<PackageVersion>([^<]+)<\/PackageVersion>.*/\1/')"
+
+          if [ -z "$package_version" ]; then
+            package_version="$(grep -m1 '<Version>' src/FaultLens.Sdk/FaultLens.Sdk.csproj | sed -E 's/.*<Version>([^<]+)<\/Version>.*/\1/')"
+          fi
+
+          if [ -z "$package_version" ]; then
+            echo "Could not determine package version from src/FaultLens.Sdk/FaultLens.Sdk.csproj." >&2
+            exit 1
+          fi
+
+          if [ "$tag_version" != "$package_version" ]; then
+            echo "Tag version '$tag_version' does not match package version '$package_version'." >&2
+            exit 1
+          fi
+
+          echo "Package version $package_version matches tag ${GITHUB_REF_NAME}."
+
+      - name: Restore
+        run: dotnet restore FaultLens.Sdk.sln
+
+      - name: Build
+        run: dotnet build FaultLens.Sdk.sln -c Release --no-restore /p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        run: dotnet test FaultLens.Sdk.sln -c Release --no-build /p:ContinuousIntegrationBuild=true
+
+      - name: Pack
+        run: dotnet pack src/FaultLens.Sdk/FaultLens.Sdk.csproj -c Release --no-build -o ./artifacts /p:ContinuousIntegrationBuild=true
+
+      - name: Verify package artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          shopt -s nullglob
+          packages=(./artifacts/*.nupkg)
+          symbols=(./artifacts/*.snupkg)
+
+          if [ "${#packages[@]}" -eq 0 ]; then
+            echo "No .nupkg package was produced in ./artifacts." >&2
+            exit 1
+          fi
+
+          if [ "${#symbols[@]}" -eq 0 ]; then
+            echo "No .snupkg symbol package was produced in ./artifacts." >&2
+            exit 1
+          fi
+
+          printf 'Produced packages:\n'
+          printf '  %s\n' "${packages[@]}"
+          printf 'Produced symbols:\n'
+          printf '  %s\n' "${symbols[@]}"
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: faultlens-sdk-nuget-packages
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+          if-no-files-found: error
+
+      - name: Publish packages to NuGet.org
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for package in ./artifacts/*.nupkg; do
+            dotnet nuget push "$package" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done
+
+          for symbol_package in ./artifacts/*.snupkg; do
+            dotnet nuget push "$symbol_package" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done

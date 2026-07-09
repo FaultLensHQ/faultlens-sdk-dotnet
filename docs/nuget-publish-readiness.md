@@ -109,7 +109,39 @@ The package namespace remains `FaultLens.Sdk`; the public NuGet package ID is `F
 
 ## NuGet.org upload
 
-After final metadata review and local package validation:
+Official NuGet.org publishing must run from GitHub Actions, not a developer machine.
+
+Preferred authentication is NuGet Trusted Publishing from GitHub Actions. Configure a trusted publisher in the NuGet.org FaultLens organization before pushing the release tag.
+
+Trusted Publishing policy values:
+
+- Package ID: `FaultLens.SDK`
+- Repository owner: `FaultLensHQ`
+- Repository name: `faultlens-sdk-dotnet`
+- Workflow file: `.github/workflows/nuget-org-publish.yml`
+- Environment: none, unless a GitHub environment is intentionally added to the workflow later
+- Tag pattern: `sdk-v*.*.*`
+
+Fallback option:
+
+- Use a scoped NuGet.org API key only if Trusted Publishing is unavailable for the FaultLens organization/package. Store it as a GitHub Actions secret and update the workflow in the same reviewed change before release.
+
+Manual release steps after approval:
+
+1. Confirm this checklist is complete and the package version has not already been published.
+2. Create and push the release tag from the validated commit:
+
+```powershell
+git tag sdk-v1.1.0
+git push origin sdk-v1.1.0
+```
+
+3. Confirm the `Publish FaultLens SDK to NuGet.org` workflow completes successfully.
+4. Confirm both `FaultLens.SDK.1.1.0.nupkg` and `FaultLens.SDK.1.1.0.snupkg` are available from the workflow artifacts and NuGet.org package page.
+
+The workflow is triggered only by tags matching `sdk-v*.*.*`. It validates that the tag version matches the project `PackageVersion`, restores, builds, tests, packs, verifies `.nupkg` and `.snupkg`, uploads artifacts, then publishes both packages to NuGet.org through GitHub Actions OIDC / NuGet Trusted Publishing.
+
+Emergency manual upload command, only if Trusted Publishing or GitHub Actions is unavailable and explicit approval is given:
 
 ```powershell
 dotnet nuget push .\src\FaultLens.Sdk\bin\Release\FaultLens.SDK.1.1.0.nupkg --api-key <NUGET_API_KEY> --source https://api.nuget.org/v3/index.json
@@ -127,6 +159,7 @@ Do not upload to NuGet.org until build, test, pack, package inspection, and cons
 - `dotnet pack .\FaultLens.Sdk.sln -c Release /p:ContinuousIntegrationBuild=true` produces `.nupkg` and `.snupkg`
 - package metadata matches this document
 - Source Link and portable PDB metadata are present as far as local tooling can verify
+- GitHub Actions workflow artifact contains both `.nupkg` and `.snupkg`
 - local consumer/sample validation succeeds with the normal package reference
 
 <br />

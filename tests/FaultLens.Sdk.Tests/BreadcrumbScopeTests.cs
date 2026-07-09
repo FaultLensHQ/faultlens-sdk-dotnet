@@ -45,7 +45,7 @@ namespace FaultLens.Sdk.Tests
                 ["trace"] = new string('x', BreadcrumbSanitizer.MetadataValueMaxLength + 10)
             });
 
-            Assert.Equal(BreadcrumbSanitizer.MetadataValueMaxLength, sanitized["trace"].ToString().Length);
+            Assert.Equal(BreadcrumbSanitizer.MetadataValueMaxLength, sanitized["trace"].ToString()!.Length);
             Assert.Equal("request", BreadcrumbSanitizer.NormalizeLayer(null, "http"));
             Assert.Equal("warning", BreadcrumbSanitizer.NormalizeLevel("WARNING", "info"));
         }
