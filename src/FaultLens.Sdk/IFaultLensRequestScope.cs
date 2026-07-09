@@ -49,5 +49,35 @@ namespace FaultLens.Sdk
             if (!string.IsNullOrWhiteSpace(criticality)) SetTag(FaultLensReservedTags.Criticality, criticality);
             if (!string.IsNullOrWhiteSpace(operation)) SetTag(FaultLensReservedTags.Operation, operation);
         }
+
+        /// <summary>
+        /// Sets the criticality of the operation or route (distinct from the capability criticality set
+        /// by <see cref="SetCapability"/>). Convenience over <see cref="SetTag"/> with
+        /// <see cref="FaultLensReservedTags.OperationCriticality"/>; criticality should be one of
+        /// <see cref="FaultLensCriticality"/> — other values are ignored by the backend.
+        /// </summary>
+        void SetOperationCriticality(string criticality)
+        {
+            if (!string.IsNullOrWhiteSpace(criticality)) SetTag(FaultLensReservedTags.OperationCriticality, criticality);
+        }
+
+        /// <summary>
+        /// Marks this request as belonging to an explicit business workflow so FaultLens can use it as a
+        /// trusted severity signal. Convenience over <see cref="SetTag"/> with
+        /// <see cref="FaultLensReservedTags.Workflow"/>.
+        /// </summary>
+        void SetWorkflow(string workflow)
+        {
+            if (!string.IsNullOrWhiteSpace(workflow)) SetTag(FaultLensReservedTags.Workflow, workflow);
+        }
+
+        /// <summary>
+        /// Marks this request as belonging to an explicit background job or scheduled task. Convenience
+        /// over <see cref="SetTag"/> with <see cref="FaultLensReservedTags.Job"/>.
+        /// </summary>
+        void SetJob(string job)
+        {
+            if (!string.IsNullOrWhiteSpace(job)) SetTag(FaultLensReservedTags.Job, job);
+        }
     }
 }

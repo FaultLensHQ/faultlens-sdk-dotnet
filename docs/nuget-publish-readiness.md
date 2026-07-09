@@ -1,17 +1,16 @@
 # NuGet Publish Readiness
 
-This checklist prepares the `1.0.1` public package for the official FaultLens .NET SDK.
+This checklist prepares the `1.1.0` feature release for the official FaultLens .NET SDK. It adds explicit business-context severity metadata (operation criticality, workflow, and job reserved tags plus helpers) and carries forward the `1.0.2` package-health improvements (Source Link, symbol package, deterministic build).
 
 Locked package identity:
 
 - Package ID: `FaultLens.SDK`
-- Version: `1.0.1`
+- Version: `1.1.0`
 - NuGet organization: `FaultLens`
 - NuGet prefix request: `FaultLens.*`
 - Repository name alignment: `faultlens-sdk-dotnet`
 - Public website: `faultlens.in`
-- npm organization for sibling JS packages: `faultlenshq`
-- npm scope for sibling JS packages: `@faultlenshq`
+- GitHub repository: `https://github.com/FaultLensHQ/faultlens-sdk-dotnet`
 
 Product availability truth:
 
@@ -20,45 +19,75 @@ Product availability truth:
 - Staging is live and is the active validation environment.
 - SDK publishing should not imply production SaaS availability until product production validation is complete.
 
-## Pack locally
+## Package-health build commands
 
-From the repository root:
+Run package-health validation from the repository root:
 
-```bash
-dotnet pack src/FaultLens.Sdk/FaultLens.Sdk.csproj -c Release -o .\.nupkg
+```powershell
+dotnet clean .\FaultLens.Sdk.sln
+dotnet restore .\FaultLens.Sdk.sln
+dotnet build .\FaultLens.Sdk.sln -c Release /p:ContinuousIntegrationBuild=true
+dotnet test .\FaultLens.Sdk.sln -c Release /p:ContinuousIntegrationBuild=true
+dotnet pack .\FaultLens.Sdk.sln -c Release /p:ContinuousIntegrationBuild=true
 ```
+
+Use `ContinuousIntegrationBuild=true` for local package-health builds so deterministic build and Source Link metadata are emitted the same way as CI release builds.
 
 Expected outputs:
 
 ```text
-.\.nupkg\FaultLens.SDK.1.0.1.nupkg
-.\.nupkg\FaultLens.SDK.1.0.1.snupkg
+src\FaultLens.Sdk\bin\Release\FaultLens.SDK.1.1.0.nupkg
+src\FaultLens.Sdk\bin\Release\FaultLens.SDK.1.1.0.snupkg
 ```
 
-## Validate with the local machine feed
+## Package artifact rules
 
-The developer machine already has a machine-level local NuGet source configured. Do not add `NuGet.config` to the sample repository, do not commit local feed paths, and do not make the sample project depend on local-only restore behavior.
+- Upload `.nupkg` as the main package.
+- Upload `.snupkg` as the symbol package if using a workflow that uploads symbols separately.
+- Do not upload extracted package contents.
+- Do not commit generated `.nupkg` or `.snupkg` files.
+- Windows may show `.nupkg` as "Compressed Archive Folder"; that is normal.
 
-Pack the SDK, copy the release-candidate package into the configured local feed, clear NuGet cache if needed, then restore/build the sample project normally:
+## Validate package metadata
 
-```bash
-dotnet pack src/FaultLens.Sdk/FaultLens.Sdk.csproj -c Release -o .\.nupkg
-copy .\.nupkg\FaultLens.SDK.1.0.1.nupkg <machine-local-nuget-feed>
+Before upload, inspect the package and confirm:
+
+- `PackageId` is `FaultLens.SDK`
+- `Version` is `1.1.0`
+- `PackageProjectUrl` is `https://faultlens.in/`
+- `RepositoryUrl` is `https://github.com/FaultLensHQ/faultlens-sdk-dotnet`
+- `RepositoryType` is `git`
+- `PackageLicenseExpression` is `MIT`
+- README is included in the package
+- symbols are enabled with `snupkg`
+- portable PDB exists in the symbol package
+- no test assemblies or sample output are included in the package
+- no local paths, secrets, or machine-specific NuGet source configuration are included
+
+## Validate with a temporary local source
+
+Use a temporary local NuGet source outside committed files. Do not add `NuGet.config` to this repository or to sample repositories.
+
+Example:
+
+```powershell
+dotnet nuget add source .\src\FaultLens.Sdk\bin\Release --name faultlens-local-110
 dotnet nuget locals all --clear
 cd ..\faultlens-dotnet-samples
 dotnet restore
 dotnet build
+dotnet nuget remove source faultlens-local-110
 ```
 
 The sample project should keep a normal package reference that matches the intended public release candidate:
 
 ```xml
-<PackageReference Include="FaultLens.SDK" Version="1.0.1" />
+<PackageReference Include="FaultLens.SDK" Version="1.1.0" />
 ```
 
-If `1.0.1` is already published on NuGet.org before this validation pass, do not overwrite it. Choose the next intended release version and validate that exact version to avoid source/cache ambiguity.
+If `1.1.0` is already published on NuGet.org before this validation pass, do not overwrite it. Choose the next intended release version and validate that exact version to avoid source/cache ambiguity.
 
-Optional minimal `Program.cs` smoke check:
+Optional minimal smoke check:
 
 ```csharp
 using System;
@@ -68,9 +97,9 @@ using var client = new FaultLensClient(
     new FaultLensOptions(
         apiKey: "local-package-smoke-test",
         environment: "local",
-        release: "1.0.1",
+        release: "1.1.0",
         serviceName: "package-smoke",
-        serviceVersion: "1.0.1"));
+        serviceVersion: "1.1.0"));
 
 client.CaptureMessage("FaultLens local package smoke test");
 client.Flush(TimeSpan.FromSeconds(1));
@@ -78,29 +107,32 @@ client.Flush(TimeSpan.FromSeconds(1));
 
 The package namespace remains `FaultLens.Sdk`; the public NuGet package ID is `FaultLens.SDK`.
 
-## Local feed note
-
-Publishing or installing from a local NuGet source does not reserve the public NuGet.org package ID. The public package ID is reserved only when the package is pushed to NuGet.org by an authorized account or organization.
-
-## NuGet.org push
+## NuGet.org upload
 
 After final metadata review and local package validation:
 
-```bash
-dotnet nuget push .\.nupkg\FaultLens.SDK.1.0.1.nupkg --api-key <NUGET_API_KEY> --source https://api.nuget.org/v3/index.json
+```powershell
+dotnet nuget push .\src\FaultLens.Sdk\bin\Release\FaultLens.SDK.1.1.0.nupkg --api-key <NUGET_API_KEY> --source https://api.nuget.org/v3/index.json
+dotnet nuget push .\src\FaultLens.Sdk\bin\Release\FaultLens.SDK.1.1.0.snupkg --api-key <NUGET_API_KEY> --source https://api.nuget.org/v3/index.json
 ```
 
-Do not push the `.snupkg` separately unless the NuGet symbol push workflow requires it for the configured account; modern `dotnet nuget push` handles symbols for standard NuGet.org package pushes.
+Do not upload to NuGet.org until build, test, pack, package inspection, and consumer validation are complete.
 
 ## Pre-publish checklist
 
-- `PackageId` is `FaultLens.SDK`
-- `Version` is `1.0.1`
-- package is marked packable
-- `GeneratePackageOnBuild` is `false`
-- symbols are enabled with `snupkg`
-- README is included in the package
-- no test assemblies or sample output are included in the package
-- `RepositoryUrl` and `PackageProjectUrl` point to final public URLs
-- `dotnet test FaultLens.Sdk.sln -nologo` passes
-- local machine-feed validation succeeds with the sample repository's normal package reference
+- `dotnet clean .\FaultLens.Sdk.sln` passes
+- `dotnet restore .\FaultLens.Sdk.sln` passes
+- `dotnet build .\FaultLens.Sdk.sln -c Release /p:ContinuousIntegrationBuild=true` passes
+- `dotnet test .\FaultLens.Sdk.sln -c Release /p:ContinuousIntegrationBuild=true` passes
+- `dotnet pack .\FaultLens.Sdk.sln -c Release /p:ContinuousIntegrationBuild=true` produces `.nupkg` and `.snupkg`
+- package metadata matches this document
+- Source Link and portable PDB metadata are present as far as local tooling can verify
+- local consumer/sample validation succeeds with the normal package reference
+
+<br />
+
+<p align="center">
+  <a href="https://faultlens.in" target="_blank" rel="noopener noreferrer">
+    <img src="https://faultlens.in/assets/faultlens_logo_ui.png" alt="FaultLens" height="24" />
+  </a>
+</p>

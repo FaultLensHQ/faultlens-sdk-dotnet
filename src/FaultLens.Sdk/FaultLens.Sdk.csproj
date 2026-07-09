@@ -8,20 +8,22 @@
 
 		<!-- Package Identity -->
 		<PackageId>FaultLens.SDK</PackageId>
-		<Version>1.0.1</Version>
-		<PackageVersion>1.0.1</PackageVersion>
-		<AssemblyVersion>1.0.1.0</AssemblyVersion>
-		<FileVersion>1.0.1.0</FileVersion>
-		<InformationalVersion>1.0.1</InformationalVersion>
+		<Version>1.1.0</Version>
+		<PackageVersion>1.1.0</PackageVersion>
+		<AssemblyVersion>1.1.0.0</AssemblyVersion>
+		<FileVersion>1.1.0.0</FileVersion>
+		<InformationalVersion>1.1.0</InformationalVersion>
 		<Authors>FaultLens</Authors>
 		<Company>FaultLens</Company>
 		<IsPackable>true</IsPackable>
 		<PackageReleaseNotes>
-* Package quality patch release for FaultLens.SDK.
-* Adds Source Link and symbols package support for improved debugging experience.
-* Enables deterministic build metadata for improved package reproducibility.
-* Adds/validates package project URL metadata for https://faultlens.in/.
-* No public SDK API changes from 1.0.0.
+* Adds explicit business-context severity metadata (additive, non-breaking):
+  reserved tags faultlens.operation.criticality, faultlens.workflow, faultlens.job
+  and IFaultLensRequestScope.SetOperationCriticality / SetWorkflow / SetJob helpers.
+* Narrows faultlens.operation to service operation / route name (workflow and job
+  now have their own reserved tags).
+* Includes the 1.0.2 package-health improvements: Source Link, symbol package, and
+  deterministic release build metadata; project URL and repository metadata for consumers.
 		</PackageReleaseNotes>
 
 		<!-- Package Metadata -->
@@ -37,6 +39,8 @@
 
 		<!-- Build Settings -->
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<DebugType>portable</DebugType>
+		<DebugSymbols>true</DebugSymbols>
 		<IncludeSymbols>true</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 		<Nullable>disable</Nullable>

@@ -16,7 +16,10 @@ explanation names the explicit metadata as the source.
 |---|---|---|
 | `faultlens.capability` | Business capability, e.g. `checkout`, `billing-sync` | max 128 chars |
 | `faultlens.criticality` | Capability criticality | `critical` \| `high` \| `normal` \| `low`; anything else is ignored |
-| `faultlens.operation` | Operation/workflow/job name, e.g. `payment-capture` | max 128 chars |
+| `faultlens.operation` | Service operation or route name, e.g. `payment-capture` | max 128 chars |
+| `faultlens.operation.criticality` | Criticality of the operation/route (distinct from capability criticality) | `critical` \| `high` \| `normal` \| `low`; anything else is ignored |
+| `faultlens.workflow` | Business workflow, e.g. `tenant-onboarding` | max 128 chars |
+| `faultlens.job` | Background job / scheduled task, e.g. `nightly-billing-sync` | max 128 chars |
 
 Constants are available in `FaultLensReservedTags` and `FaultLensCriticality`.
 
@@ -30,6 +33,11 @@ scope.SetCapability("checkout", FaultLensCriticality.Critical, operation: "payme
 scope.SetTag(FaultLensReservedTags.Capability, "checkout");
 scope.SetTag(FaultLensReservedTags.Criticality, FaultLensCriticality.Critical);
 scope.SetTag(FaultLensReservedTags.Operation, "payment-capture");
+
+// Operation criticality, workflow, and job
+scope.SetOperationCriticality(FaultLensCriticality.High);
+scope.SetWorkflow("tenant-onboarding");
+scope.SetJob("nightly-billing-sync");
 ```
 
 ## Semantics
@@ -39,3 +47,11 @@ scope.SetTag(FaultLensReservedTags.Operation, "payment-capture");
 - Invalid criticality values are ignored, not coerced.
 - Severity stays global and environment-independent — environment never drives severity.
 - Do not put sensitive values in these tags; they are subject to standard tag sanitization.
+
+<br />
+
+<p align="center">
+  <a href="https://faultlens.in" target="_blank" rel="noopener noreferrer">
+    <img src="https://faultlens.in/assets/faultlens_logo_ui.png" alt="FaultLens" height="24" />
+  </a>
+</p>

@@ -2,12 +2,12 @@
 
 `FaultLens.SDK` is the official .NET client package for capturing application errors, diagnostic breadcrumbs, and request context, then sending them to FaultLens for investigation.
 
-Version `1.0.1` is the current stable release of the SDK package.
+Version `1.0.2` is the current stable release of the SDK package.
 
 ## Install
 
 ```powershell
-dotnet add package FaultLens.SDK --version 1.0.1
+dotnet add package FaultLens.SDK --version 1.1.0
 ```
 
 ## Quick Start
@@ -175,6 +175,19 @@ scope.SetTag("paymentProvider", "stripe");
 
 Do not put secrets or sensitive PII in tags. Avoid names, emails, phone numbers, raw tokens, API keys, authorization headers, cookies, payment card data, full request bodies, or connection strings.
 
+## Severity Metadata
+
+FaultLens classifies severity from observed signals and never infers business importance from routes, URLs, or stack traces. To mark an event as belonging to a business-critical capability, workflow, job, or operation, set explicit metadata on the request scope — these are the only trusted business-severity signals:
+
+```csharp
+scope.SetCapability("checkout", FaultLensCriticality.Critical, operation: "payment-capture");
+scope.SetOperationCriticality(FaultLensCriticality.High); // criticality of the operation/route
+scope.SetWorkflow("tenant-onboarding");
+scope.SetJob("nightly-billing-sync");
+```
+
+These map to the reserved keys on `FaultLensReservedTags`: `faultlens.capability`, `faultlens.criticality`, `faultlens.operation`, `faultlens.operation.criticality`, `faultlens.workflow`, and `faultlens.job`. Criticality values should be one of `FaultLensCriticality` (`critical`, `high`, `normal`, `low`); other values are ignored by the backend.
+
 ## Release And Environment
 
 Use stable environment labels such as `production`, `staging`, or `development`.
@@ -218,3 +231,11 @@ Possible `DeliveryResult.ErrorCode` values:
 - C# language version: `8.0`
 - NuGet package ID: `FaultLens.SDK`
 - code namespace: `FaultLens.Sdk`
+
+<br />
+
+<p align="center">
+  <a href="https://faultlens.in" target="_blank" rel="noopener noreferrer">
+    <img src="https://faultlens.in/assets/faultlens_logo_ui.png" alt="FaultLens" height="24" />
+  </a>
+</p>

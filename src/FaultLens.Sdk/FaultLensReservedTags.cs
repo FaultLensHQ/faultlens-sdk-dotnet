@@ -17,8 +17,21 @@ namespace FaultLens.Sdk
         /// </summary>
         public const string Criticality = "faultlens.criticality";
 
-        /// <summary>Operation, workflow, or job name, e.g. "payment-capture" or "nightly-billing-sync". Max 128 chars.</summary>
+        /// <summary>Service operation or route name, e.g. "payment-capture" or "GET /api/orders/{id}". Max 128 chars.</summary>
         public const string Operation = "faultlens.operation";
+
+        /// <summary>
+        /// Criticality of the operation or route named by <see cref="Operation"/> (distinct from the
+        /// capability <see cref="Criticality"/>). Allowed values: "critical", "high", "normal", "low"
+        /// (see <see cref="FaultLensCriticality"/>). Any other value is ignored by the backend.
+        /// </summary>
+        public const string OperationCriticality = "faultlens.operation.criticality";
+
+        /// <summary>Business workflow the event belongs to, e.g. "order-fulfilment" or "tenant-onboarding". Max 128 chars.</summary>
+        public const string Workflow = "faultlens.workflow";
+
+        /// <summary>Background job or scheduled task name, e.g. "nightly-billing-sync" or "invoice-generation". Max 128 chars.</summary>
+        public const string Job = "faultlens.job";
     }
 
     /// <summary>Allowed values for the <see cref="FaultLensReservedTags.Criticality"/> tag.</summary>
