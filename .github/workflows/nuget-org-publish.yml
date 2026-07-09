@@ -97,7 +97,7 @@ jobs:
         id: nuget-login
         uses: NuGet/login@v1
         with:
-          user: FaultLens
+          user: Suresh_Amudalapalli
 
       - name: Publish packages to NuGet.org
         shell: bash

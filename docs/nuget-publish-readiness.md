@@ -113,12 +113,15 @@ Official NuGet.org publishing must run from GitHub Actions, not a developer mach
 
 Preferred authentication is NuGet Trusted Publishing from GitHub Actions. Configure a trusted publisher in the NuGet.org FaultLens organization before pushing the release tag. The workflow uses `NuGet/login@v1` to exchange the GitHub OIDC token for a temporary NuGet API key, then passes that temporary key to `dotnet nuget push`.
 
+The `NuGet/login@v1` `user` value must be the NuGet username that created the trusted publishing policy. This may be different from the package owner or NuGet organization. The current policy creator username is `Suresh_Amudalapalli`.
+
 Trusted Publishing policy values:
 
 - Package ID: `FaultLens.SDK`
 - Repository owner: `FaultLensHQ`
 - Repository name: `faultlens-sdk-dotnet`
 - Workflow file: `.github/workflows/nuget-org-publish.yml`
+- Policy creator / `NuGet/login@v1` user: `Suresh_Amudalapalli`
 - Environment: none, unless a GitHub environment is intentionally added to the workflow later
 - Tag pattern: `sdk-v*.*.*`
 
