@@ -2,12 +2,18 @@
 
 `FaultLens.SDK` is the official .NET client package for capturing application errors, diagnostic breadcrumbs, and request context, then sending them to FaultLens for investigation.
 
-Version `1.1.0` is the next official release candidate for the SDK package.
+`FaultLens.SDK 1.1.1` is the current release of the SDK package.
 
 ## Install
 
 ```powershell
-dotnet add package FaultLens.SDK --version 1.1.0
+dotnet add package FaultLens.SDK
+```
+
+To pin an explicit version:
+
+```powershell
+dotnet add package FaultLens.SDK --version 1.1.1
 ```
 
 ## Quick Start
@@ -177,16 +183,18 @@ Do not put secrets or sensitive PII in tags. Avoid names, emails, phone numbers,
 
 ## Severity Metadata
 
-FaultLens classifies severity from observed signals and never infers business importance from routes, URLs, or stack traces. To mark an event as belonging to a business-critical capability, workflow, job, or operation, set explicit metadata on the request scope — these are the only trusted business-severity signals:
+FaultLens classifies severity from observed signals and never infers business importance from routes, URLs, or stack traces. To mark an event as belonging to a business-critical capability, set explicit metadata on the request scope — these are the only trusted business-severity signals:
 
 ```csharp
 scope.SetCapability("checkout", FaultLensCriticality.Critical, operation: "payment-capture");
-scope.SetOperationCriticality(FaultLensCriticality.High); // criticality of the operation/route
-scope.SetWorkflow("tenant-onboarding");
-scope.SetJob("nightly-billing-sync");
+
+// Operation on its own — may name a route, workflow, job, command, or any operation.
+scope.SetOperation("nightly-billing-sync");
 ```
 
-These map to the reserved keys on `FaultLensReservedTags`: `faultlens.capability`, `faultlens.criticality`, `faultlens.operation`, `faultlens.operation.criticality`, `faultlens.workflow`, and `faultlens.job`. Criticality values should be one of `FaultLensCriticality` (`critical`, `high`, `normal`, `low`); other values are ignored by the backend.
+The FaultLens backend consumes exactly three reserved tags on `FaultLensReservedTags`: `faultlens.capability`, `faultlens.criticality`, and `faultlens.operation`. `operation` is a single general-purpose field that may name a route, workflow, job, command, or background operation. Criticality values should be one of `FaultLensCriticality` (`critical`, `high`, `normal`, `low`); other values are ignored by the backend.
+
+> **Deprecated in 1.1.1:** `SetOperationCriticality(...)`, `SetWorkflow(...)`, `SetJob(...)` and the reserved constants `OperationCriticality`, `Workflow`, `Job` were emitted by 1.1.0 but are not consumed by the backend. They are now no-ops retained only for source compatibility. Use `SetCapability(...)` and `SetOperation(...)`. See [docs/capability-metadata.md](docs/capability-metadata.md).
 
 ## Release And Environment
 
