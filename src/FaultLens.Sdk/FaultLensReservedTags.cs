@@ -1,10 +1,18 @@
+using System;
+
 namespace FaultLens.Sdk
 {
     /// <summary>
     /// Reserved FaultLens tag names. Values sent under these keys are treated by the FaultLens
-    /// backend as explicit, trusted capability/criticality metadata for severity classification.
+    /// backend as explicit, trusted business metadata for severity classification.
     /// FaultLens never infers business criticality from routes, URLs, or stack traces — these
     /// tags are the only way to mark an event as belonging to a business-critical capability.
+    /// <para>
+    /// The FaultLens ingestion contract consumes exactly three reserved tags:
+    /// <see cref="Capability"/>, <see cref="Criticality"/>, and <see cref="Operation"/>.
+    /// The <c>Operation</c> value may name a route, workflow, job, command, or any other
+    /// business operation. Other keys in this type are deprecated and ignored by the backend.
+    /// </para>
     /// </summary>
     public static class FaultLensReservedTags
     {
@@ -17,20 +25,35 @@ namespace FaultLens.Sdk
         /// </summary>
         public const string Criticality = "faultlens.criticality";
 
-        /// <summary>Service operation or route name, e.g. "payment-capture" or "GET /api/orders/{id}". Max 128 chars.</summary>
+        /// <summary>
+        /// Business operation the event belongs to. This is a single, general-purpose field: it may
+        /// name a service operation, route, workflow, job, command, or background operation, e.g.
+        /// "payment-capture", "GET /api/orders/{id}", "tenant-onboarding", or "nightly-billing-sync".
+        /// Max 128 chars.
+        /// </summary>
         public const string Operation = "faultlens.operation";
 
         /// <summary>
-        /// Criticality of the operation or route named by <see cref="Operation"/> (distinct from the
-        /// capability <see cref="Criticality"/>). Allowed values: "critical", "high", "normal", "low"
-        /// (see <see cref="FaultLensCriticality"/>). Any other value is ignored by the backend.
+        /// Deprecated. The FaultLens backend does not consume a separate operation-criticality tag;
+        /// use <see cref="Criticality"/> for the event's criticality. Retained only for source
+        /// compatibility with 1.1.0.
         /// </summary>
+        [Obsolete("Not consumed by the FaultLens backend. Use FaultLensReservedTags.Criticality. This member is ignored end-to-end and will be removed in a future major version.")]
         public const string OperationCriticality = "faultlens.operation.criticality";
 
-        /// <summary>Business workflow the event belongs to, e.g. "order-fulfilment" or "tenant-onboarding". Max 128 chars.</summary>
+        /// <summary>
+        /// Deprecated. The FaultLens backend does not consume a separate workflow tag; model the
+        /// workflow as the <see cref="Operation"/> value instead. Retained only for source
+        /// compatibility with 1.1.0.
+        /// </summary>
+        [Obsolete("Not consumed by the FaultLens backend. Use FaultLensReservedTags.Operation to name the workflow. This member is ignored end-to-end and will be removed in a future major version.")]
         public const string Workflow = "faultlens.workflow";
 
-        /// <summary>Background job or scheduled task name, e.g. "nightly-billing-sync" or "invoice-generation". Max 128 chars.</summary>
+        /// <summary>
+        /// Deprecated. The FaultLens backend does not consume a separate job tag; model the job as
+        /// the <see cref="Operation"/> value instead. Retained only for source compatibility with 1.1.0.
+        /// </summary>
+        [Obsolete("Not consumed by the FaultLens backend. Use FaultLensReservedTags.Operation to name the job. This member is ignored end-to-end and will be removed in a future major version.")]
         public const string Job = "faultlens.job";
     }
 

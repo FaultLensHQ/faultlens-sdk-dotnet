@@ -8,21 +8,26 @@
 
 		<!-- Package Identity -->
 		<PackageId>FaultLens.SDK</PackageId>
-		<Version>1.1.0</Version>
-		<PackageVersion>1.1.0</PackageVersion>
-		<AssemblyVersion>1.1.0.0</AssemblyVersion>
-		<FileVersion>1.1.0.0</FileVersion>
-		<InformationalVersion>1.1.0</InformationalVersion>
+		<Version>1.1.1</Version>
+		<PackageVersion>1.1.1</PackageVersion>
+		<AssemblyVersion>1.1.1.0</AssemblyVersion>
+		<FileVersion>1.1.1.0</FileVersion>
+		<InformationalVersion>1.1.1</InformationalVersion>
 		<Authors>FaultLens</Authors>
 		<Company>FaultLens</Company>
 		<IsPackable>true</IsPackable>
 		<PackageReleaseNotes>
-* Adds explicit business-context severity metadata (additive, non-breaking):
-  reserved tags faultlens.operation.criticality, faultlens.workflow, faultlens.job
-  and IFaultLensRequestScope.SetOperationCriticality / SetWorkflow / SetJob helpers.
-* Narrows faultlens.operation to service operation / route name (workflow and job
-  now have their own reserved tags).
-* Includes the 1.0.2 package-health improvements: Source Link, symbol package, and
+* Corrective release aligning the SDK reserved-tag surface with the FaultLens ingestion
+  contract. The backend consumes exactly three reserved tags: faultlens.capability,
+  faultlens.criticality, and faultlens.operation.
+* faultlens.operation is a single general-purpose field that may name a route, workflow,
+  job, command, or any other business operation.
+* Deprecates SetOperationCriticality / SetWorkflow / SetJob and the reserved-tag constants
+  OperationCriticality / Workflow / Job. These were emitted by 1.1.0 but never consumed by
+  the backend; the helpers are now no-ops retained only for source compatibility. Use
+  SetCapability(...) and SetOperation(...) instead.
+* Adds SetOperation(...) convenience helper.
+* Retains the 1.0.2 package-health improvements: Source Link, symbol package, and
   deterministic release build metadata; project URL and repository metadata for consumers.
 		</PackageReleaseNotes>
 

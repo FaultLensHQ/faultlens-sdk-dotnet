@@ -2,21 +2,29 @@ using FaultLens.Sdk;
 using FaultLens.Sdk.Envelopes;
 using FaultLens.Sdk.Transport;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 namespace FaultLens.Sdk.Tests
 {
     public sealed class ReservedTagsTests
     {
+        // The FaultLens ingestion contract consumes exactly these three reserved tags.
+        // See docs/capability-metadata.md and the backend IngestErrorEnvelopeV1Mapper.
+        private static readonly string[] BackendConsumedReservedTags =
+        {
+            "faultlens.capability",
+            "faultlens.criticality",
+            "faultlens.operation"
+        };
+
         [Fact]
-        public void ReservedTagKeys_HaveExpectedWireNames()
+        public void SupportedReservedTagKeys_HaveExpectedWireNames()
         {
             Assert.Equal("faultlens.capability", FaultLensReservedTags.Capability);
             Assert.Equal("faultlens.criticality", FaultLensReservedTags.Criticality);
             Assert.Equal("faultlens.operation", FaultLensReservedTags.Operation);
-            Assert.Equal("faultlens.operation.criticality", FaultLensReservedTags.OperationCriticality);
-            Assert.Equal("faultlens.workflow", FaultLensReservedTags.Workflow);
-            Assert.Equal("faultlens.job", FaultLensReservedTags.Job);
         }
 
         [Fact]
@@ -38,45 +46,59 @@ namespace FaultLens.Sdk.Tests
         }
 
         [Fact]
-        public void SetOperationCriticality_EmitsOperationCriticalityTag()
-        {
-            var transport = new RecordingTransport();
-            var client = MakeClient(transport);
-
-            using var scope = client.BeginRequest("GET", "/api/orders/{id}");
-            scope.SetOperationCriticality(FaultLensCriticality.High);
-
-            client.CaptureMessage("captured");
-
-            Assert.Equal("high", transport.LastEnvelope.Tags["faultlens.operation.criticality"]);
-        }
-
-        [Fact]
-        public void SetWorkflow_EmitsWorkflowTag()
-        {
-            var transport = new RecordingTransport();
-            var client = MakeClient(transport);
-
-            using var scope = client.BeginRequest("POST", "/onboard");
-            scope.SetWorkflow("tenant-onboarding");
-
-            client.CaptureMessage("captured");
-
-            Assert.Equal("tenant-onboarding", transport.LastEnvelope.Tags["faultlens.workflow"]);
-        }
-
-        [Fact]
-        public void SetJob_EmitsJobTag()
+        public void SetOperation_EmitsOperationTag()
         {
             var transport = new RecordingTransport();
             var client = MakeClient(transport);
 
             using var scope = client.BeginRequest("POST", "/jobs/run");
-            scope.SetJob("nightly-billing-sync");
+            scope.SetOperation("nightly-billing-sync");
 
             client.CaptureMessage("captured");
 
-            Assert.Equal("nightly-billing-sync", transport.LastEnvelope.Tags["faultlens.job"]);
+            Assert.Equal("nightly-billing-sync", transport.LastEnvelope.Tags["faultlens.operation"]);
+        }
+
+        [Fact]
+        public void SetCapability_OnlyEmitsBackendConsumedReservedKeys()
+        {
+            var transport = new RecordingTransport();
+            var client = MakeClient(transport);
+
+            using var scope = client.BeginRequest("POST", "/checkout");
+            scope.SetCapability("checkout", FaultLensCriticality.Critical, "payment-capture");
+
+            client.CaptureMessage("captured");
+
+            var reservedKeys = transport.LastEnvelope.Tags.Keys
+                .Where(k => k.StartsWith("faultlens.", StringComparison.Ordinal))
+                .OrderBy(k => k, StringComparer.Ordinal)
+                .ToArray();
+
+            // The SDK must never emit a faultlens.* reserved key the backend silently discards.
+            Assert.All(reservedKeys, k => Assert.Contains(k, BackendConsumedReservedTags));
+        }
+
+        [Fact]
+        public void DeprecatedHelpers_AreNoOps_AndEmitNoReservedTags()
+        {
+            var transport = new RecordingTransport();
+            var client = MakeClient(transport);
+
+            using (var scope = client.BeginRequest("POST", "/onboard"))
+            {
+#pragma warning disable CS0618 // Intentionally exercising deprecated no-op helpers.
+                scope.SetOperationCriticality(FaultLensCriticality.High);
+                scope.SetWorkflow("tenant-onboarding");
+                scope.SetJob("nightly-billing-sync");
+#pragma warning restore CS0618
+            }
+
+            client.CaptureMessage("captured");
+
+            // No supported metadata was set and the deprecated helpers are no-ops,
+            // so no tags (and specifically no discarded reserved keys) are emitted.
+            Assert.Null(transport.LastEnvelope.Tags);
         }
 
         [Theory]
@@ -89,9 +111,7 @@ namespace FaultLens.Sdk.Tests
             var client = MakeClient(transport);
 
             using var scope = client.BeginRequest("GET", "/data");
-            scope.SetWorkflow(value);
-            scope.SetJob(value);
-            scope.SetOperationCriticality(value);
+            scope.SetOperation(value);
             scope.SetCapability(value, value, value);
 
             client.CaptureMessage("data");
@@ -111,9 +131,12 @@ namespace FaultLens.Sdk.Tests
             var ex = Record.Exception(() =>
             {
                 scope.SetCapability("checkout", "critical", "payment-capture");
+                scope.SetOperation("nightly-billing-sync");
+#pragma warning disable CS0618 // Deprecated no-op helpers must also stay safe.
                 scope.SetOperationCriticality("high");
                 scope.SetWorkflow("tenant-onboarding");
                 scope.SetJob("nightly-billing-sync");
+#pragma warning restore CS0618
             });
 
             Assert.Null(ex);
