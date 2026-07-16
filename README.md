@@ -4,6 +4,9 @@
 
 `FaultLens.SDK 1.1.1` is the current release of the SDK package.
 
+> **FaultLens supports any platform.** Use an official SDK where available, or integrate directly
+> using the HTTP ingestion API. This package is the official SDK for .NET.
+
 ## Install
 
 ```powershell
