@@ -1,80 +1,46 @@
 # AGENTS.md — faultlens-sdk-dotnet
 
-Canonical shared instruction file for all coding agents (ClaudeCode, Codex, and equivalents).
-This repo owns the **FaultLens .NET SDK** — the official `FaultLens.SDK` NuGet package that customers install to capture errors and diagnostics and send them to FaultLens.
-Read this before starting any task in this repo.
+Repository-local overlay for the official FaultLens .NET SDK.
 
----
+This file owns SDK/public-contract/safety/build constraints. It must not duplicate current package/framework versions or workstation-specific workflow paths when authoritative project files exist.
 
-## Product principle
+## Decision/design routing
 
-- SDK changes should help customers capture useful diagnostic context safely and with minimal friction.
-- SDK must not surprise users with unsafe defaults, noisy behavior, or breaking changes.
-- SDK failures must never crash customer applications — ingestion errors must be swallowed or surfaced through callbacks, not thrown.
-- Every change should support faster production triage/debugging or safer SDK operation.
+For non-trivial SDK changes:
 
----
+1. establish current public API/runtime behavior and customer integration impact;
+2. use Product Decisions when product semantics, capture/privacy policy, compatibility intent, priority or non-goals are unresolved;
+3. use Design when the approved decision still needs an implementation-ready public contract/migration/runtime design;
+4. implement narrowly;
+5. strictly review compatibility, privacy, failure isolation and executable evidence.
 
-## Work mode
+**Discovery does not imply priority.** Adjacent cleanup does not automatically become active product work.
 
-- Aggressive build mode. Implementation-first.
-- Minimal, production-safe changes.
-- Avoid broad refactors unless explicitly required by the issue.
-- Preserve public API compatibility unless the issue explicitly requires a breaking change.
+## SDK public contract
 
----
+- SDK behavior must help customers capture useful diagnostic context safely and with minimal integration friction.
+- Treat all public exported types/members/configuration as customer-facing contracts.
+- Breaking public API changes require explicit Product Decision + migration/versioning design.
+- SDK/network/ingestion failures must not escape as unhandled host-application failures.
+- Secrets/tokens/passwords/cookies/auth headers/PII are never captured by default.
+- Preserve async/cancellation semantics and broad compatibility declared by authoritative project configuration.
+- Avoid unnecessary dependencies and runtime footprint.
 
-## GitHub tracking workflow
+## Package/build truth
 
-- Open a GitHub issue before starting feature work. Do not create duplicate issues.
-- Use `C:\PersonalProjects\faultlens-ui\issue-body.md` as the scratch file for issue bodies and comments.
-- After validation, update the issue using `gh issue comment` with `--body-file`.
-- Do not close issues unless implementation is complete and validated.
-- Keep GitHub CLI commands simple.
+Read package identity, version, target frameworks, language version, warning policy and package-generation behavior from current `.csproj`/solution/configuration. Do not duplicate volatile values here.
 
----
+Never publish packages or change versions unless explicitly authorized for the active release task.
 
-## Repo, branch, and release rules
+## Repository discipline
 
-- Repo name: `faultlens-sdk-dotnet`.
-- Branch convention: `master` / `dev` / `test`. Do not use `main`.
-- Do not publish NuGet packages unless explicitly requested.
-- Do not change the package version (`<Version>`) unless explicitly requested.
-- Do not set `GeneratePackageOnBuild=true` — it is intentionally `false`.
-- Do not deploy or release unless explicitly requested.
+- GitHub issues/PRs are the durable work record.
+- Keep changes focused and preserve unrelated work.
+- Persist decisions/evidence in GitHub rather than a personal filesystem scratch path.
+- Follow the repository's actual branch/release configuration rather than assuming another repo's convention.
 
----
+## Validation
 
-## SDK implementation rules
+Run the build/test/pack validation required by the affected public contract using commands from the current solution/project configuration. Packaging validation does not authorize publishing.
 
-- **Package identity**: `FaultLens.SDK` (NuGet ID), namespace `FaultLens.Sdk`. Preserve both exactly.
-- **Target framework**: `netstandard2.1` for broad compatibility. Do not narrow the target or add net-specific targets without explicit approval.
-- **Language version**: C# 8.0. Do not use language features that require a higher version.
-- **`TreatWarningsAsErrors=true`** — all code must build with zero warnings. Do not suppress warnings to work around this.
-- **Public API**: treat `IFaultLensClient`, `FaultLensClient`, `FaultLensOptions`, `IFaultLensRequestScope`, and all public types/members as a stable contract. Do not remove, rename, or change signatures without explicit approval.
-- **Dependencies**: avoid adding heavy dependencies. Current runtime dependencies are `System.Diagnostics.DiagnosticSource` and `System.Text.Json` — keep additions minimal and well-justified.
-- **No sensitive data by default**: do not capture secrets, tokens, passwords, cookies, or PII by default. Configuration must be explicit and opt-in.
-- **Async and cancellation**: preserve `async`/`await` and `CancellationToken` patterns where present.
-- **Failure isolation**: network/ingestion failures must not propagate as unhandled exceptions into host application code.
-- **Internal surface**: `FaultLens.Sdk.Tests` has `InternalsVisibleTo` access — keep internal types testable without over-exposing them.
-
----
-
-## Validation expectations
-
-- Run `dotnet build FaultLens.Sdk.sln` to verify the full solution builds cleanly.
-- Run `dotnet test FaultLens.Sdk.sln` if tests exist or were changed.
-- Run `dotnet pack src/FaultLens.Sdk/FaultLens.Sdk.csproj` only if package metadata or packaging behavior changed — do not publish the output.
-- Include exact commands and results in the final response.
-
----
-
-## Final response format
-
-Max 8 bullets covering:
-
-- Files changed
-- What changed and why
-- Validation commands and results
-- GitHub issue update status
-- Follow-up notes (only when useful)
+Report exact results and anything not validated. Never claim an unexecuted check passed.
