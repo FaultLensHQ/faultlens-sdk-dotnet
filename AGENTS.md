@@ -19,16 +19,18 @@ For non-trivial SDK changes:
 ## SDK public contract
 
 - SDK behavior must help customers capture useful diagnostic context safely and with minimal integration friction.
-- Treat all public exported types/members/configuration as customer-facing contracts.
-- Breaking public API changes require explicit Product Decision + migration/versioning design.
+- Treat public exported types/members/configuration, package identity/namespace, and supported target compatibility as customer-facing contracts.
+- Breaking public API, package-identity, namespace, or target-compatibility changes require explicit Product Decision + migration/versioning design.
 - SDK/network/ingestion failures must not escape as unhandled host-application failures.
 - Secrets/tokens/passwords/cookies/auth headers/PII are never captured by default.
-- Preserve async/cancellation semantics and broad compatibility declared by authoritative project configuration.
+- Preserve supported capture behavior, async/cancellation semantics and broad compatibility declared by authoritative project configuration unless an approved Product Decision/Design changes that contract.
 - Avoid unnecessary dependencies and runtime footprint.
 
 ## Package/build truth
 
-Read package identity, version, target frameworks, language version, warning policy and package-generation behavior from current `.csproj`/solution/configuration. Do not duplicate volatile values here.
+Read the exact package identity, version, target frameworks, language version, warning policy and package-generation behavior from current `.csproj`/solution/configuration. Do not duplicate volatile values here.
+
+Preserve repository build/release guards such as warning-as-error, package-generation and publish protections as currently configured; do not weaken them merely to make a change compile or package. A deliberate change to one of those guards requires an explicit approved reason and validation.
 
 Never publish packages or change versions unless explicitly authorized for the active release task.
 
