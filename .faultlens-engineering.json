@@ -1,0 +1,16 @@
+{
+  "source": "FaultLensHQ/faultlens-engineering",
+  "standardsVersion": "1.2.0",
+  "sourceCommit": "05558d0383bd994eac1861d60f1a0c39e73ba3d6",
+  "syncStatus": "synchronized",
+  "profile": "sdk-dotnet",
+  "distributionMode": "canonical-with-repository-overlay",
+  "managedFiles": [
+    ".claude/skills/faultlens-product-decisions/SKILL.md",
+    ".codex/skills/faultlens-product-decisions/SKILL.md",
+    ".claude/skills/faultlens-design/SKILL.md",
+    ".codex/skills/faultlens-design/SKILL.md"
+  ],
+  "overlayFiles": ["AGENTS.md", "CLAUDE.md"],
+  "reconciledAt": "2026-08-09"
+}
