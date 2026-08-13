@@ -219,14 +219,34 @@ Automatic ASP.NET Core middleware/header capture is a future integration follow-
 - SDK delivery failures do not throw into normal application code paths
 - delivery callbacks are optional and advisory
 - `Flush(...)` provides a bounded drain for shutdown and short-lived processes
+- the transport retries transient ingest failures internally (bounded, with backoff); it never retries a terminal outcome
 
-Possible `DeliveryResult.ErrorCode` values:
+### Retry semantics for non-2xx ingest responses
 
-- `network_error`
-- `rate_limited`
-- `unauthorized`
-- `serialization_failed`
-- `unknown`
+The ingest endpoint (`docs/ingestion-api.md` in `faultlens-backend`) returns three non-2xx statuses with
+specific meaning. Do not treat all non-2xx responses the same — in particular, **429 is not always
+retryable**: a 429 carrying `monthly_event_capacity_exhausted` means the workspace's monthly allowance is
+used up, and retrying will not help until the next usage period.
+
+| HTTP | `reasonCode` | `DeliveryResult.Reason` | `Retryable` | SDK behavior |
+|---|---|---|---|---|
+| `409` | `event_identity_conflict` | `DeliveryFailureKind.IdentityConflict` | `false` | Never retried. The event id was already accepted for a different event. |
+| `429` | `monthly_event_capacity_exhausted` | `DeliveryFailureKind.CapacityExhausted` | `false` | Never retried. Terminal for the current usage period; `PeriodEndUtc` is surfaced when the backend supplies it. |
+| `429` | anything else (or no parseable body) | `DeliveryFailureKind.Throttled` | `true` | Retried with bounded backoff, same as ordinary rate limiting. |
+| `503` | any `monthly_event_*` reason | `DeliveryFailureKind.ServiceUnavailable` | `true` | Retried with bounded backoff; the allowance authority could not answer. |
+| other `5xx` / network error | — | `DeliveryFailureKind.NetworkError` | `true` | Retried with bounded backoff. |
+| other non-2xx | — | `DeliveryFailureKind.Http` / `Unknown` | `false` | Not retried. |
+
+The 429-vs-429 distinction is made from the response body's `reasonCode`, not from the status code alone —
+the backend's own ingestion rate limiter returns a different body shape (`{"code":"rate_limited",...}`) than
+the capacity-exhaustion response. If a 429/503/409 body cannot be parsed, the SDK fails closed: it never
+infers capacity exhaustion or identity conflict without evidence, and falls back to the existing
+status-code-only behavior.
+
+On terminal failures, `DeliveryResult.ErrorCode` and `DeliveryResult.ReasonCode` carry the backend's
+machine-readable reason when one was returned (e.g. `event_identity_conflict`,
+`monthly_event_capacity_exhausted`); `DeliveryResult.Success`/`Retryable` remain the primary fields for
+branching in code, and `Reason` gives a typed classification without string matching.
 
 ## Troubleshooting
 
