@@ -2,7 +2,6 @@ using FaultLens.Sdk.Envelopes;
 using FaultLens.Sdk.Internal;
 using System;
 using System.Diagnostics;
-using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -13,16 +12,25 @@ namespace FaultLens.Sdk.Transport
 {
     internal sealed class HttpEventTransport : IEventTransport
     {
-        private static readonly HttpClient Client = new HttpClient();
+        private static readonly HttpClient SharedClient = new HttpClient();
 
         private readonly FaultLensOptions _options;
         private readonly RetryPolicy _retryPolicy;
+        private readonly HttpClient _client;
+        private readonly IAsyncDelay _delay;
         private int _inFlight;
 
         public HttpEventTransport(FaultLensOptions options)
+            : this(options, null, null)
+        {
+        }
+
+        internal HttpEventTransport(FaultLensOptions options, HttpMessageHandler handler, IAsyncDelay delay)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
             _retryPolicy = new RetryPolicy(maxRetries: 3, baseDelay: TimeSpan.FromMilliseconds(500));
+            _client = handler != null ? new HttpClient(handler) : SharedClient;
+            _delay = delay ?? SystemAsyncDelay.Instance;
         }
 
         public async void Send(ErrorEnvelopeV1 envelope, Action<DeliveryResult> callback = null)
@@ -31,15 +39,18 @@ namespace FaultLens.Sdk.Transport
                 return;
 
             Interlocked.Increment(ref _inFlight);
-            _ = SendWithRetryAsync(envelope, callback);
+            _ = SendWithRetryAsync(envelope, callback, CancellationToken.None);
         }
 
-        private async Task SendWithRetryAsync(ErrorEnvelopeV1 envelope, Action<DeliveryResult> callback = null)
+        /// <summary>Internal, test-visible entry point: awaitable and cancellable, so retry timing and
+        /// bounded-retry behaviour can be verified deterministically without wall-clock sleeps.</summary>
+        internal async Task SendWithRetryAsync(ErrorEnvelopeV1 envelope, Action<DeliveryResult> callback, CancellationToken cancellationToken)
         {
             try
             {
                 for (var attempt = 0; attempt <= _retryPolicy.MaxRetries; attempt++)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     TransportResult transportResult;
 
                     try
@@ -52,7 +63,7 @@ namespace FaultLens.Sdk.Transport
 
                         request.Headers.Add("X-API-Key", _options.ApiKey);
 
-                        var response = await Client.SendAsync(request).ConfigureAwait(false);
+                        var response = await _client.SendAsync(request, cancellationToken).ConfigureAwait(false);
 
                         if (response.IsSuccessStatusCode)
                         {
@@ -60,21 +71,36 @@ namespace FaultLens.Sdk.Transport
                             return;
                         }
 
-                        transportResult = MapHttpFailure(response.StatusCode);
+                        transportResult = await IngestResponseClassifier.ClassifyAsync(response).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
-                        transportResult = TransportResult.TransientFailure("network_error", ex.Message);
+                        transportResult = TransportResult.Transient(IngestFailureKind.NetworkError, "network_error", ex.Message);
                     }
 
                     if (!transportResult.IsTransient || attempt == _retryPolicy.MaxRetries)
                     {
-                        callback?.Invoke(DeliveryResult.Failed(transportResult.ErrorCode, transportResult.ErrorMessage));
+                        callback?.Invoke(DeliveryResult.Failed(
+                            transportResult.ErrorCode,
+                            transportResult.ErrorMessage,
+                            MapKind(transportResult.Kind),
+                            transportResult.IsTransient,
+                            transportResult.ReasonCode,
+                            transportResult.PeriodEndUtc));
                         return;
                     }
 
-                    await Task.Delay(_retryPolicy.GetDelay(attempt)).ConfigureAwait(false);
+                    await _delay.DelayAsync(_retryPolicy.GetDelay(attempt), cancellationToken).ConfigureAwait(false);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Caller cancelled; no further callback. Matches the pre-existing fire-and-forget
+                // contract of Send(), which never invoked the callback on Dispose either.
             }
             finally
             {
@@ -82,14 +108,25 @@ namespace FaultLens.Sdk.Transport
             }
         }
 
-        private static TransportResult MapHttpFailure(HttpStatusCode status)
+        private static DeliveryFailureKind MapKind(IngestFailureKind kind)
         {
-            if ((int)status >= 500 || status == HttpStatusCode.TooManyRequests)
+            switch (kind)
             {
-                return TransportResult.TransientFailure(status.ToString(), "Transient ingest failure");
+                case IngestFailureKind.IdentityConflict:
+                    return DeliveryFailureKind.IdentityConflict;
+                case IngestFailureKind.CapacityExhausted:
+                    return DeliveryFailureKind.CapacityExhausted;
+                case IngestFailureKind.ServiceUnavailable:
+                    return DeliveryFailureKind.ServiceUnavailable;
+                case IngestFailureKind.Throttled:
+                    return DeliveryFailureKind.Throttled;
+                case IngestFailureKind.NetworkError:
+                    return DeliveryFailureKind.NetworkError;
+                case IngestFailureKind.Http:
+                    return DeliveryFailureKind.Http;
+                default:
+                    return DeliveryFailureKind.Unknown;
             }
-
-            return TransportResult.PermanentFailure(status.ToString(), "Permanent ingest failure");
         }
 
         public void Flush(TimeSpan timeout)
@@ -101,7 +138,7 @@ namespace FaultLens.Sdk.Transport
             }
         }
 
-        public void Dispose() 
+        public void Dispose()
         {
             Flush(TimeSpan.FromSeconds(1));
         }
