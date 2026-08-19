@@ -1,0 +1,81 @@
+name: PR Validation
+
+on:
+  push:
+    branches: ["master", "test", "dev/**"]
+  pull_request:
+    branches: ["master", "test", "dev"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-dotnet-pr-validation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validation:
+    name: Build + test + pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore FaultLens.Sdk.sln
+
+      - name: Build Release
+        run: dotnet build FaultLens.Sdk.sln -c Release --no-restore /p:ContinuousIntegrationBuild=true
+
+      - name: Run tests
+        run: dotnet test FaultLens.Sdk.sln -c Release --no-build /p:ContinuousIntegrationBuild=true
+
+      - name: Pack without publishing
+        run: dotnet pack src/FaultLens.Sdk/FaultLens.Sdk.csproj -c Release --no-build -o ./artifacts /p:ContinuousIntegrationBuild=true
+
+      - name: Verify package artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(./artifacts/*.nupkg)
+          symbols=(./artifacts/*.snupkg)
+
+          if [ "${#packages[@]}" -ne 1 ]; then
+            echo "Expected exactly one .nupkg; found ${#packages[@]}." >&2
+            exit 1
+          fi
+
+          if [ "${#symbols[@]}" -ne 1 ]; then
+            echo "Expected exactly one .snupkg; found ${#symbols[@]}." >&2
+            exit 1
+          fi
+
+          echo "NuGet package contents:"
+          unzip -l "${packages[0]}"
+          echo "Symbol package contents:"
+          unzip -l "${symbols[0]}"
+
+          if unzip -Z1 "${packages[0]}" | grep -E '(^|/)(bin|obj|\.git|\.vs|\.idea|\.vscode|artifacts?)/' ; then
+            echo "Package contains repository/build metadata that must not ship." >&2
+            exit 1
+          fi
+
+      - name: Upload validation packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: faultlens-sdk-validation-packages
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+          if-no-files-found: error
+          retention-days: 14
