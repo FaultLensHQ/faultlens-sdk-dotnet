@@ -16,6 +16,19 @@ For non-trivial SDK changes:
 
 **Discovery does not imply priority.** Adjacent cleanup does not automatically become active product work.
 
+## AI operating-role and compute routing
+
+Canonical AI role/model/context governance is distributed through `faultlens-engineering` at governance **1.2.7**, released from `FaultLensHQ/faultlens-engineering` commit `c43eb36d81d157858c0ea03c0c355007f45320e5`.
+
+- Governance changes use **AI Governor** review; implementation acceptance uses an independent **Architecture & Product Governor**; implementation/remediation/testing runs as an **Execution Agent** and does not approve itself for merge.
+- Use the strongest reasoning tier for Product Decisions, Design, unresolved public-contract/privacy/compatibility/data-correctness reasoning, difficult debugging and strict independent review.
+- Once the contract is settled, default routine implementation to a **medium-cost capable execution model**.
+- Prefer the **lowest-cost capable mechanical tier** for deterministic/repetitive tests/build/pack re-runs, formatting/lint work, straightforward explicit tests, repetitive edits, documentation, CI/log/status inspection and already-specified remediation.
+- A lower tier that encounters ambiguity or material risk stops/escalates rather than guessing. Do not keep top reasoning merely because the task started there.
+- Checkpoint mutable state durably and prefer fresh execution context when prior conversation state is mostly completed work.
+- Compute/context economy never weakens public API compatibility, privacy, host-application safety, correctness, validation evidence or independent review.
+- Use capability-based routing; do not hard-code provider/model version names.
+
 ## SDK public contract
 
 - SDK behavior must help customers capture useful diagnostic context safely and with minimal integration friction.
