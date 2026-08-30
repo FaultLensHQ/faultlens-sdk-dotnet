@@ -1,7 +1,7 @@
 {
   "source": "FaultLensHQ/faultlens-engineering",
-  "standardsVersion": "1.2.9",
-  "sourceCommit": "8d60bb16532fa143e45d96380d23a6ca9dd4b0ab",
+  "standardsVersion": "1.2.11",
+  "sourceCommit": "a32927ebd6b5670293d16ae0644624f11bff2757",
   "syncStatus": "synchronized",
   "profile": "sdk-dotnet",
   "distributionMode": "canonical-with-repository-overlay",
