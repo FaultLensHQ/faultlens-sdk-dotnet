@@ -6,6 +6,7 @@
   "profile": "sdk-dotnet",
   "distributionMode": "canonical-with-repository-overlay",
   "managedFiles": [
+    "docs/engineering/local-workspace-resolution.md",
     ".claude/skills/faultlens-product-decisions/SKILL.md",
     ".codex/skills/faultlens-product-decisions/SKILL.md",
     ".claude/skills/faultlens-design/SKILL.md",
