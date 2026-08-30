@@ -9,7 +9,7 @@ This is a router, not a source of public API/product truth.
 
 ## Operating-role boundary
 
-Canonical role governance comes from `FaultLensHQ/faultlens-engineering/docs/agents/operating-roles.md`, governance **1.2.8**, released source commit `5386de8ea63968424ccc9838c8ba47dc2b78e015`.
+Canonical role governance comes from `FaultLensHQ/faultlens-engineering/docs/agents/operating-roles.md`, governance **1.2.9**, released source commit `8d60bb16532fa143e45d96380d23a6ca9dd4b0ab`.
 
 - **AI Governor** applies to agent/skill/governance/rule/version/distribution changes.
 - **Architecture & Product Governor** applies when an execution agent returns implementation for acceptance. Independently inspect the actual current PR/head/base/diff/evidence rather than trusting the completion report.
@@ -27,7 +27,7 @@ Use the smallest applicable path:
 
 ## Compute and context economy
 
-Canonical compute/context governance comes from `FaultLensHQ/faultlens-engineering/docs/ai-compute-context-economy.md`, governance **1.2.8**, released source commit `5386de8ea63968424ccc9838c8ba47dc2b78e015`.
+Canonical compute/context governance comes from `FaultLensHQ/faultlens-engineering/docs/ai-compute-context-economy.md`, governance **1.2.9**, released source commit `8d60bb16532fa143e45d96380d23a6ca9dd4b0ab`.
 
 - Use the strongest reasoning tier for Product Decisions, Design, unresolved public-contract/privacy/compatibility/migration/data-correctness reasoning, difficult debugging whose invariant is not yet understood, and strict independent Review.
 - Once the accepted contract is implementation-ready, default normal implementation, refactoring, repository investigation, ordinary remediation and test authoring to a **medium-cost capable execution model**. Do not interpret `strongest practical` as `strongest available`.
@@ -38,9 +38,15 @@ Canonical compute/context governance comes from `FaultLensHQ/faultlens-engineeri
 - Compute/context economy must never weaken public API compatibility, privacy, host-application safety, correctness, validation evidence or independent review.
 - Use capability-based routing; do not hard-code provider/model version names into durable governance.
 
+## Workspace and repository resolution
+
+Canonical local-workspace governance comes from `FaultLensHQ/faultlens-engineering/docs/engineering/local-workspace-resolution.md`, governance **1.2.9**, released source commit `8d60bb16532fa143e45d96380d23a6ca9dd4b0ab`.
+
+Before cloning or reconstructing a FaultLens repository, resolve `FaultLensHQ/<repo>` against the configured local workspace/repository map, verify the candidate Git working tree and remote identity, and reuse the valid local checkout. GitHub remains authoritative for durable issues, PRs, review state, hosted CI and remote evidence. Local-first execution does not authorize stale-ref assumptions or destructive worktree cleanup.
+
 ## Pull-request validation and review state
 
-Canonical PR validation/review governance comes from `FaultLensHQ/faultlens-engineering/docs/engineering/pr-validation-and-review-state.md`, governance **1.2.8**, released source commit `5386de8ea63968424ccc9838c8ba47dc2b78e015`.
+Canonical PR validation/review governance comes from `FaultLensHQ/faultlens-engineering/docs/engineering/pr-validation-and-review-state.md`, governance **1.2.9**, released source commit `8d60bb16532fa143e45d96380d23a6ca9dd4b0ab`.
 
 - Open implementation PRs as non-Draft / Ready for review by default. GitHub Ready state is not FaultLens merge approval.
 - While implementation is incomplete, record `IMPLEMENTATION IN PROGRESS — NOT READY FOR GOVERNOR REVIEW` in durable PR evidence.
