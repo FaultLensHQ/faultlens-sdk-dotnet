@@ -16,21 +16,6 @@ namespace FaultLens.Sdk.Internal
         private const int MetadataDepthLimit = 4;
         private const int MetadataArrayLimit = 10;
 
-        private static readonly HashSet<string> SensitiveKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "authorization",
-            "token",
-            "password",
-            "passwd",
-            "secret",
-            "api_key",
-            "apikey",
-            "access_token",
-            "refresh_token",
-            "cookie",
-            "set-cookie"
-        };
-
         private static readonly HashSet<string> AllowedLayers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "request",
@@ -155,8 +140,8 @@ namespace FaultLens.Sdk.Internal
 
         private static object SanitizeValue(string key, object value, int depth)
         {
-            if (SensitiveKeys.Contains(key))
-                return "***redacted***";
+            if (SensitiveKey.IsSensitive(key))
+                return SensitiveKey.Filtered;
 
             if (value == null)
                 return null;

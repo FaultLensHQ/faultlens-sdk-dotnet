@@ -30,10 +30,15 @@ namespace FaultLens.Sdk
         }
 
         internal FaultLensClient(FaultLensOptions options, IEventTransport transport)
+            : this(options, transport, null)
+        {
+        }
+
+        internal FaultLensClient(FaultLensOptions options, IEventTransport transport, Func<ErrorEnvelopeV1, ErrorEnvelopeV1> privacyPolicy)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
 
-            _envelopeBuilder = new ErrorEnvelopeBuilder(_options, new SdkInfo());
+            _envelopeBuilder = new ErrorEnvelopeBuilder(_options, new SdkInfo(), privacyPolicy);
             _transport = transport ?? new HttpEventTransport(_options);
             _executor = new SafeExecutor();
             _scopeRegistry = new BreadcrumbScopeRegistry();
@@ -44,6 +49,12 @@ namespace FaultLens.Sdk
             if (breadcrumb == null || string.IsNullOrWhiteSpace(breadcrumb.Message) || IsDisposed())
                 return;
 
+            // Breadcrumb data is customer-supplied (arbitrary objects); never let it throw into the host.
+            _executor.Execute(() => AddBreadcrumbCore(breadcrumb));
+        }
+
+        private void AddBreadcrumbCore(Breadcrumb breadcrumb)
+        {
             var scope = ResolveScopeForWrite();
             var sequence = scope.NextSequence();
             scope.Add(new BreadcrumbEntry
@@ -164,7 +175,7 @@ namespace FaultLens.Sdk
             {
                 var scopeState = _requestScope.Value;
                 EnsureRequestFailedBreadcrumb(exception);
-                var envelope = _envelopeBuilder
+                SendBuilt(() => _envelopeBuilder
                     .WithException(exception)
                     .WithFingerprint(fingerprint)
                     .WithBreadcrumbs(SnapshotBreadcrumbs())
@@ -179,9 +190,7 @@ namespace FaultLens.Sdk
                         correlationId: scopeState?.CorrelationId,
                         useConfiguredIdentity: scopeState == null || !scopeState.HasIdentityOverride)
                     .WithTags(GetScopeTags(scopeState))
-                    .Build();
-
-                _transport.Send(envelope, callback);
+                    .Build(), callback);
             });
         }
 
@@ -193,7 +202,7 @@ namespace FaultLens.Sdk
             _executor.Execute(() =>
             {
                 var scopeState = _requestScope.Value;
-                var envelope = _envelopeBuilder
+                SendBuilt(() => _envelopeBuilder
                     .WithMessage(message)
                     .WithFingerprint(fingerprint)
                     .WithBreadcrumbs(SnapshotBreadcrumbs())
@@ -208,10 +217,42 @@ namespace FaultLens.Sdk
                         correlationId: scopeState?.CorrelationId,
                         useConfiguredIdentity: scopeState == null || !scopeState.HasIdentityOverride)
                     .WithTags(GetScopeTags(scopeState))
-                    .Build();
-
-                _transport.Send(envelope, callback);
+                    .Build(), callback);
             });
+        }
+
+        private void SendBuilt(Func<ErrorEnvelopeV1> build, Action<DeliveryResult> callback)
+        {
+            ErrorEnvelopeV1 envelope;
+            try
+            {
+                envelope = build();
+            }
+            catch (EnvelopePrivacyException)
+            {
+                // Fail closed: the event is neither sent nor retried, and no unredacted copy exists here.
+                InvokeCallback(callback, DeliveryResult.Failed(
+                    EnvelopePrivacyException.ReasonCode,
+                    "The event was not sent because the mandatory privacy pass failed.",
+                    DeliveryFailureKind.Unknown,
+                    retryable: false,
+                    reasonCode: EnvelopePrivacyException.ReasonCode));
+                return;
+            }
+
+            _transport.Send(envelope, callback);
+        }
+
+        private static void InvokeCallback(Action<DeliveryResult> callback, DeliveryResult result)
+        {
+            try
+            {
+                callback?.Invoke(result);
+            }
+            catch
+            {
+                // Customer callbacks must never affect the SDK or the host.
+            }
         }
 
         public void Flush(TimeSpan timeout)
@@ -590,7 +631,7 @@ namespace FaultLens.Sdk
             {
                 _state.Url = QueryStringSanitizer.SanitizeUrl(url);
                 _state.QueryString = QueryStringSanitizer.SanitizeQueryString(queryString);
-                _state.Referrer = referrer;
+                _state.Referrer = QueryStringSanitizer.SanitizeUrl(referrer);
                 _state.UserAgent = userAgent;
             }
 
