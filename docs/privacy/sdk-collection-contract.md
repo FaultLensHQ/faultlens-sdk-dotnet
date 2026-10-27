@@ -28,7 +28,9 @@ before serialization. No SDK option, including the legacy JavaScript `sanitize: 
    lower-casing and replacing `-` with `_`, it equals `pwd` or contains one of:
    `authorization`, `bearer`, `cookie`, `password`, `passwd`, `token`, `secret`, `apikey`, `api_key`, `session`,
    `csrf`, `xsrf`, `credential`, `private_key`, `card`, `cvv`, `otp`, `email`, `jwt`, `aadhaar`, `signature`.
-   (Same semantics as the backend `IsSensitiveKey`.)
+   (Same semantics as the backend `IsSensitiveKey`.) An SDK may keep additional names it already treated as
+   sensitive before this contract (browser: exact `auth`; .NET query strings: `key`, `code`, `auth`);
+   an SDK may never treat fewer names as sensitive.
 2. **Text rules.** Every free-text string (section 4) is scanned with the rules below, in this order. A match is
    replaced with `[REDACTED:<rule>]`; `auth_scheme` keeps the scheme, `kv_secret` keeps the key and separator, and
    `url_userinfo` keeps `scheme://`. Inputs shorter than 6 characters are not scanned.
