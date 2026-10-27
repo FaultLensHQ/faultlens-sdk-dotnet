@@ -109,7 +109,7 @@ namespace FaultLens.Sdk.Tests
             client.CaptureMessage("callback");
 
             var url = transport.LastEnvelope.Request.RequestedUrl;
-            Assert.Contains("token=[REDACTED]", url);
+            Assert.Contains("token=[Filtered]", url);
             Assert.Contains("user=42", url);
             Assert.DoesNotContain("secret123", url);
         }
@@ -128,7 +128,7 @@ namespace FaultLens.Sdk.Tests
             client.CaptureMessage("search");
 
             var qs = transport.LastEnvelope.Request.QueryString;
-            Assert.Contains("api_key=[REDACTED]", qs);
+            Assert.Contains("api_key=[Filtered]", qs);
             Assert.Contains("q=dotnet", qs);
         }
 

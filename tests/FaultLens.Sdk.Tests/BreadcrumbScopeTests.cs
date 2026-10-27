@@ -33,7 +33,7 @@ namespace FaultLens.Sdk.Tests
 
             var sanitized = BreadcrumbSanitizer.Sanitize(data);
 
-            Assert.Equal("***redacted***", sanitized["token"]);
+            Assert.Equal("[Filtered]", sanitized["token"]);
             Assert.Equal(200, sanitized["statusCode"]);
         }
 

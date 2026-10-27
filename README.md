@@ -248,6 +248,18 @@ machine-readable reason when one was returned (e.g. `event_identity_conflict`,
 `monthly_event_capacity_exhausted`); `DeliveryResult.Success`/`Retryable` remain the primary fields for
 branching in code, and `Reason` gives a typed classification without string matching.
 
+## Privacy
+
+The SDK applies mandatory, always-on privacy protections to every event just before it is serialized. They cannot be disabled and they run on the final payload, so retries only ever resend the already-redacted event.
+
+- Values stored under sensitive key names (passwords, tokens, cookies, authorization, API keys, session/CSRF values, card, e-mail, JWT, Aadhaar, signatures and similar) in breadcrumb data, tags and query strings become `[Filtered]`. Earlier versions used `***redacted***` (breadcrumb data) and `[REDACTED]` (query values); URL user-info still becomes `[REDACTED]`.
+- Free text (exception type/message, stack frames, messages, tags, breadcrumb text and data, request and client strings) is scanned for private keys, JWTs, bearer/basic credentials, `key=value` secrets, cloud/provider API keys, URL credentials, e-mail addresses, payment card numbers and Aadhaar numbers, and matches become `[REDACTED:<rule>]`.
+- Fingerprints and correlation IDs are redacted only when a rule would change them. Identity values (`userId`, `accountId`, `tenantId`, `anonymousId`) are sent exactly as supplied; pass opaque IDs, not e-mail addresses.
+- Strings, stack traces, breadcrumbs and nested metadata are size-bounded. If the privacy pass itself fails, the event is not sent and the delivery callback reports `sdk_privacy_policy_failed`.
+- Redacted events may group differently from earlier SDK versions once, if their text contained a redacted value.
+
+The full contract, including what is and is not guaranteed, is in [docs/privacy/sdk-collection-contract.md](docs/privacy/sdk-collection-contract.md).
+
 ## Troubleshooting
 
 - Wrong endpoint: verify `FAULTLENS_ENDPOINT` points to the correct FaultLens ingest/API endpoint for your workspace.
