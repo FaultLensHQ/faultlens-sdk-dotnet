@@ -1,0 +1,32 @@
+{
+  "contract": "sdk-privacy-v1",
+  "description": "Shared synthetic test vectors for the mandatory SDK text-redaction rules. Every FaultLens SDK must produce exactly `expected` for `input`, and applying the rules to `expected` must return `expected` unchanged (idempotency). All values are synthetic.",
+  "vectors": [
+    { "id": "email", "input": "login failed for alice.synthetic@example.test", "expected": "login failed for [REDACTED:email]" },
+    { "id": "email_package_reference_not_address", "input": "loaded app@1.0.0.dll", "expected": "loaded app@1.0.0.dll" },
+    { "id": "email_in_raw_query_text", "input": "https://app.example.test/reset?email=bob.synthetic@example.test&step=2", "expected": "https://app.example.test/reset?email=[REDACTED:email]&step=2" },
+    { "id": "jwt", "input": "value eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJzeW50aGV0aWMifQ.c3ludGhldGljc2ln end", "expected": "value [REDACTED:jwt] end" },
+    { "id": "auth_scheme_bearer", "input": "header Bearer abcDEF123456synthetic", "expected": "header Bearer [REDACTED:auth_scheme]" },
+    { "id": "auth_scheme_prose_untouched", "input": "Basic configuration missing", "expected": "Basic configuration missing" },
+    { "id": "kv_secret_plain", "input": "connect password=Sup3rSynthetic! host=db", "expected": "connect password=[REDACTED:kv_secret] host=db" },
+    { "id": "kv_secret_json", "input": "{\"api_key\":\"synthetic-value-123\"}", "expected": "{\"api_key\":\"[REDACTED:kv_secret]\"}" },
+    { "id": "kv_secret_key_must_end_in_keyword", "input": "max_tokens=4096", "expected": "max_tokens=4096" },
+    { "id": "kv_secret_null_value_untouched", "input": "token=null", "expected": "token=null" },
+    { "id": "aws_key", "input": "key AKIAABCDEFGHIJKLMNOP used", "expected": "key [REDACTED:aws_key] used" },
+    { "id": "github_token", "input": "using ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 now", "expected": "using [REDACTED:github_token] now" },
+    { "id": "slack_token", "input": "slack xoxb-1234567890-synthetic ok", "expected": "slack [REDACTED:slack_token] ok" },
+    { "id": "provider_secret_key_stripe_shape", "input": "pay sk_test_SYNTHETIC1234567890 ok", "expected": "pay [REDACTED:provider_secret_key] ok" },
+    { "id": "provider_secret_key_razorpay_shape", "input": "pay rzp_test_SYNTH12345 ok", "expected": "pay [REDACTED:provider_secret_key] ok" },
+    { "id": "google_api_key", "input": "maps AIzaSyNTHETICsyntheticSYNTHETIC12345678 ok", "expected": "maps [REDACTED:google_api_key] ok" },
+    { "id": "url_userinfo", "input": "fetch https://user:pa55word@api.example.test/v1", "expected": "fetch https://[REDACTED:url_userinfo]@api.example.test/v1" },
+    { "id": "card_luhn_and_issuer", "input": "card 4111 1111 1111 1111 declined", "expected": "card [REDACTED:card] declined" },
+    { "id": "numeric_id_not_card", "input": "order 1234567890123456", "expected": "order 1234567890123456" },
+    { "id": "aadhaar_verhoeff", "input": "id 2345 6789 0124", "expected": "id [REDACTED:aadhaar]" },
+    { "id": "aadhaar_bad_checksum_untouched", "input": "id 2345 6789 0123", "expected": "id 2345 6789 0123" },
+    { "id": "private_key_block", "input": "-----BEGIN RSA PRIVATE KEY-----\nMIIBsynthetic\n-----END RSA PRIVATE KEY-----", "expected": "[REDACTED:private_key]" },
+    { "id": "placeholders_are_fixed_points", "input": "[REDACTED:email] and [REDACTED:jwt] and [Filtered]", "expected": "[REDACTED:email] and [REDACTED:jwt] and [Filtered]" },
+    { "id": "phone_is_backend_only", "input": "call +91 98765 43210", "expected": "call +91 98765 43210" },
+    { "id": "pan_is_backend_only", "input": "pan ABCPE1234F", "expected": "pan ABCPE1234F" },
+    { "id": "short_input_untouched", "input": "a@b.c", "expected": "a@b.c" }
+  ]
+}

@@ -1,4 +1,5 @@
 using FaultLens.Sdk.Envelopes;
+using FaultLens.Sdk.Internal;
 using System;
 using System.Collections.Generic;
 
@@ -26,8 +27,17 @@ namespace FaultLens.Sdk.Builders
         private bool _useConfiguredIdentity = true;
         private IReadOnlyDictionary<string, string> _tags;
 
+        private readonly Func<ErrorEnvelopeV1, ErrorEnvelopeV1> _privacyPolicy;
+
         public ErrorEnvelopeBuilder(FaultLensOptions options, SdkInfo sdk)
+            : this(options, sdk, null)
         {
+        }
+
+        // The policy seam exists only so tests can force a policy failure; production always uses the default.
+        internal ErrorEnvelopeBuilder(FaultLensOptions options, SdkInfo sdk, Func<ErrorEnvelopeV1, ErrorEnvelopeV1> privacyPolicy)
+        {
+            _privacyPolicy = privacyPolicy ?? EnvelopePrivacyPolicy.Apply;
             _options = options ?? throw new ArgumentNullException(nameof(options));
             _sdk = sdk ?? throw new ArgumentNullException(nameof(sdk));
         }
@@ -131,7 +141,7 @@ namespace FaultLens.Sdk.Builders
             if (FirstNonBlank(userId, tenantId, customerId, accountId) != null)
                 anonymousId = null;
 
-            return new ErrorEnvelopeV1(
+            var raw = new ErrorEnvelopeV1(
                 eventId: Guid.NewGuid().ToString("N"),
                 timestamp: DateTimeOffset.UtcNow,
                 environment: _options.Environment,
@@ -153,6 +163,17 @@ namespace FaultLens.Sdk.Builders
                 correlationId: FirstNonBlank(_correlationId, _options.CorrelationId),
                 tags: _tags
             );
+
+            // Mandatory sdk-privacy-v1 pass: every envelope leaving the public builder is already redacted and
+            // bounded. A failure here must never fall back to the unredacted envelope.
+            try
+            {
+                return _privacyPolicy(raw);
+            }
+            catch
+            {
+                throw new EnvelopePrivacyException();
+            }
         }
 
         // -------------------------

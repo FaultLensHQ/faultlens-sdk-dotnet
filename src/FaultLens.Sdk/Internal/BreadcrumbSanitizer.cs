@@ -16,21 +16,6 @@ namespace FaultLens.Sdk.Internal
         private const int MetadataDepthLimit = 4;
         private const int MetadataArrayLimit = 10;
 
-        private static readonly HashSet<string> SensitiveKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "authorization",
-            "token",
-            "password",
-            "passwd",
-            "secret",
-            "api_key",
-            "apikey",
-            "access_token",
-            "refresh_token",
-            "cookie",
-            "set-cookie"
-        };
-
         private static readonly HashSet<string> AllowedLayers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "request",
@@ -59,6 +44,20 @@ namespace FaultLens.Sdk.Internal
             "warning",
             "error"
         };
+
+        /// <summary>Exact (ordinal, case-sensitive) member of the canonical layer set.</summary>
+        internal static bool IsCanonicalLayer(string value) => IsExact(AllowedLayers, value);
+
+        internal static bool IsCanonicalType(string value) => IsExact(AllowedTypes, value);
+
+        internal static bool IsCanonicalLevel(string value) => IsExact(AllowedLevels, value);
+
+        private static bool IsExact(HashSet<string> set, string value)
+        {
+            return value != null
+                && set.TryGetValue(value, out var actual)
+                && string.Equals(actual, value, StringComparison.Ordinal);
+        }
 
         public static IReadOnlyDictionary<string, object> Sanitize(IReadOnlyDictionary<string, object> data)
         {
@@ -155,8 +154,8 @@ namespace FaultLens.Sdk.Internal
 
         private static object SanitizeValue(string key, object value, int depth)
         {
-            if (SensitiveKeys.Contains(key))
-                return "***redacted***";
+            if (SensitiveKey.IsSensitive(key))
+                return SensitiveKey.Filtered;
 
             if (value == null)
                 return null;
