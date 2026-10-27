@@ -45,6 +45,20 @@ namespace FaultLens.Sdk.Internal
             "error"
         };
 
+        /// <summary>Exact (ordinal, case-sensitive) member of the canonical layer set.</summary>
+        internal static bool IsCanonicalLayer(string value) => IsExact(AllowedLayers, value);
+
+        internal static bool IsCanonicalType(string value) => IsExact(AllowedTypes, value);
+
+        internal static bool IsCanonicalLevel(string value) => IsExact(AllowedLevels, value);
+
+        private static bool IsExact(HashSet<string> set, string value)
+        {
+            return value != null
+                && set.TryGetValue(value, out var actual)
+                && string.Equals(actual, value, StringComparison.Ordinal);
+        }
+
         public static IReadOnlyDictionary<string, object> Sanitize(IReadOnlyDictionary<string, object> data)
         {
             if (data == null || data.Count == 0)

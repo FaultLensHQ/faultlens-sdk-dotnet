@@ -27,8 +27,9 @@ before serialization. No SDK option, including the legacy JavaScript `sanitize: 
    value replaced wholesale with `[Filtered]` and is not descended into. A name is sensitive when, after trimming,
    lower-casing and replacing `-` with `_`, it equals `pwd` or contains one of:
    `authorization`, `bearer`, `cookie`, `password`, `passwd`, `token`, `secret`, `apikey`, `api_key`, `session`,
-   `csrf`, `xsrf`, `credential`, `private_key`, `card`, `cvv`, `otp`, `email`, `jwt`, `aadhaar`, `signature`.
-   (Same semantics as the backend `IsSensitiveKey`.) An SDK may keep additional names it already treated as
+   `csrf`, `xsrf`, `credential`, `private_key`, `privatekey`, `card`, `cvv`, `otp`, `email`, `jwt`, `aadhaar`, `signature`.
+   (Same semantics as the backend `IsSensitiveKey`, plus `privatekey`, which the earlier browser SDK filtered and
+   the backend list does not cover.) An SDK may keep additional names it already treated as
    sensitive before this contract (browser: exact `auth`; .NET query strings: `key`, `code`, `auth`);
    an SDK may never treat fewer names as sensitive.
 2. **Text rules.** Every free-text string (section 4) is scanned with the rules below, in this order. A match is
@@ -80,7 +81,7 @@ before serialization. No SDK option, including the legacy JavaScript `sanitize: 
 | IDENTITY | `userId`, `accountId`, `tenantId`, `customerId` (.NET, obsolete API), `anonymousId` | Trimmed; **not** rewritten (rewriting would collapse distinct users and break ADR-0006 counting). Sent only when the application supplies them. Never logged. Never copied by the SDK into context, tags or breadcrumbs. |
 | KEY | `eventId` (SDK-generated), `fingerprint`, `correlationId` | Scanned with the text rules. If a rule would change a caller-supplied value, the SDK sends the redacted value (the backend would otherwise reject the whole event with `ingest_privacy_key_field_sensitive`). Grouping changes only for fingerprints that contained a secret or identifier. |
 | FREE_TEXT | message, exception type/message, stack frames, breadcrumb category/message/source/entityType/entityId/data, tags (keys and values), context (keys and values), request/page/client strings, release, serviceName, serviceVersion | Bounded, then mandatory rules 1–4. |
-| CONTROLLED | environment, platform, level, breadcrumb layer/type/level, SDK name/version | SDK-chosen or allow-listed; exempt. |
+| CONTROLLED | environment, platform, level, exception mechanism, breadcrumb layer/type/level, timestamps, SDK name/version, runtime name | Exempt **only** when the value is an exact member of the SDK's fixed allow-list, equals an SDK-owned constant, or is a canonical ISO-8601 UTC timestamp. Shape alone never authorizes an exemption: any other value (for example one changed by `beforeSend` or set through configuration) is treated as FREE_TEXT and scanned. |
 
 ## 4. Default collection
 

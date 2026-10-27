@@ -23,6 +23,8 @@ namespace FaultLens.Sdk.Internal
             if (rawUrl == null)
                 return null;
 
+            rawUrl = StripUserinfo(rawUrl);
+
             string fragment = null;
             var beforeFragment = rawUrl;
             var hashIndex = rawUrl.IndexOf('#');
@@ -42,7 +44,7 @@ namespace FaultLens.Sdk.Internal
             }
 
             var sb = new StringBuilder(rawUrl.Length);
-            sb.Append(StripUserinfo(pathPart));
+            sb.Append(pathPart);
             if (query != null)
                 sb.Append('?').Append(SanitizeQueryString(query));
 
@@ -114,31 +116,31 @@ namespace FaultLens.Sdk.Internal
             return false;
         }
 
-        private static string StripUserinfo(string urlWithoutQuery)
+        private static string StripUserinfo(string url)
         {
-            var schemeEnd = urlWithoutQuery.IndexOf("://", StringComparison.Ordinal);
+            var schemeEnd = url.IndexOf("://", StringComparison.Ordinal);
             if (schemeEnd <= 0)
-                return urlWithoutQuery;
+                return url;
 
             for (var i = 0; i < schemeEnd; i++)
             {
-                var c = urlWithoutQuery[i];
+                var c = url[i];
                 if (!(char.IsLetterOrDigit(c) || c == '+' || c == '-' || c == '.'))
-                    return urlWithoutQuery;
+                    return url;
             }
 
             var authorityStart = schemeEnd + 3;
-            var authorityEnd = urlWithoutQuery.IndexOf('/', authorityStart);
+            var authorityEnd = url.IndexOfAny(new[] { '/', '?', '#' }, authorityStart);
             if (authorityEnd < 0)
-                authorityEnd = urlWithoutQuery.Length;
+                authorityEnd = url.Length;
 
-            var at = urlWithoutQuery.LastIndexOf('@', authorityEnd - 1, authorityEnd - authorityStart);
+            var at = url.LastIndexOf('@', authorityEnd - 1, authorityEnd - authorityStart);
             if (at < authorityStart)
-                return urlWithoutQuery;
+                return url;
 
-            return urlWithoutQuery.Substring(0, authorityStart)
+            return url.Substring(0, authorityStart)
                 + UserinfoPlaceholder
-                + urlWithoutQuery.Substring(at);
+                + url.Substring(at);
         }
     }
 }

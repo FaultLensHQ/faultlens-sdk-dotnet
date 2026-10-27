@@ -15,7 +15,7 @@ namespace FaultLens.Sdk.Internal
         private static readonly string[] Fragments =
         {
             "authorization", "bearer", "cookie", "password", "passwd", "token", "secret", "apikey", "api_key",
-            "session", "csrf", "xsrf", "credential", "private_key", "card", "cvv", "otp", "email", "jwt",
+            "session", "csrf", "xsrf", "credential", "private_key", "privatekey", "card", "cvv", "otp", "email", "jwt",
             "aadhaar", "signature"
         };
 

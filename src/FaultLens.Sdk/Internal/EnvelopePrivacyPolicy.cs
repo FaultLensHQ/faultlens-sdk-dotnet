@@ -55,8 +55,8 @@ namespace FaultLens.Sdk.Internal
                 return new ErrorEnvelopeV1(
                     eventId: Key(e.EventId),
                     timestamp: e.Timestamp,
-                    environment: e.Environment,
-                    sdk: e.Sdk,
+                    environment: Environment(e.Environment),
+                    sdk: Sdk(e.Sdk),
                     release: Text(e.Release),
                     fingerprint: Key(e.Fingerprint),
                     exception: Exception(e.Exception),
@@ -127,6 +127,50 @@ namespace FaultLens.Sdk.Internal
 
             // ---- envelope members ----
 
+            // Shape or position alone never exempts a value: only exact SDK-owned or allow-listed values are kept
+            // verbatim; anything else is scanned like any other text (the value is kept, rules are applied).
+            private static readonly string[] KnownEnvironments = { "production", "staging", "development" };
+
+            private string Environment(string value)
+            {
+                return value != null && Array.IndexOf(KnownEnvironments, value) >= 0 ? value : Text(value);
+            }
+
+            private string Canonical(string value, Func<string, bool> isCanonical)
+            {
+                return value != null && isCanonical(value) ? value : Text(value);
+            }
+
+            private string SdkTimestamp(string value)
+            {
+                if (value != null
+                    && DateTimeOffset.TryParseExact(value, "O", System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var parsed)
+                    && string.Equals(parsed.ToString("O"), value, StringComparison.Ordinal))
+                {
+                    return value;
+                }
+
+                return Text(value);
+            }
+
+            private static readonly SdkInfo DefaultSdk = new SdkInfo();
+
+            private SdkInfo Sdk(SdkInfo info)
+            {
+                if (info == null)
+                    return null;
+
+                if (string.Equals(info.Name, DefaultSdk.Name, StringComparison.Ordinal)
+                    && string.Equals(info.Version, DefaultSdk.Version, StringComparison.Ordinal))
+                {
+                    return info;
+                }
+
+                var name = Text(info.Name);
+                return new SdkInfo(string.IsNullOrWhiteSpace(name) ? DefaultSdk.Name : name, Text(info.Version));
+            }
+
             private ExceptionInfo Exception(ExceptionInfo info)
             {
                 if (info == null)
@@ -168,12 +212,12 @@ namespace FaultLens.Sdk.Internal
                         continue;
 
                     result.Add(new BreadcrumbInfo(
-                        timestamp: b.Timestamp,
+                        timestamp: SdkTimestamp(b.Timestamp),
                         sequence: b.Sequence,
-                        layer: b.Layer,
-                        type: b.Type,
+                        layer: Canonical(b.Layer, BreadcrumbSanitizer.IsCanonicalLayer),
+                        type: Canonical(b.Type, BreadcrumbSanitizer.IsCanonicalType),
                         category: Text(b.Category),
-                        level: b.Level,
+                        level: Canonical(b.Level, BreadcrumbSanitizer.IsCanonicalLevel),
                         message: Text(b.Message),
                         source: Text(b.Source),
                         entityType: Text(b.EntityType),
