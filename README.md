@@ -2,7 +2,7 @@
 
 `FaultLens.SDK` is the official .NET client package for capturing application errors, diagnostic breadcrumbs, and request context, then sending them to FaultLens for investigation.
 
-`FaultLens.SDK 1.1.1` is the current release of the SDK package.
+`FaultLens.SDK 1.2.0` introduces the mandatory sdk-privacy-v1 protection contract.
 
 > **FaultLens supports any platform.** Use an official SDK where available, or integrate directly
 > using the HTTP ingestion API. This package is the official SDK for .NET.
@@ -16,7 +16,7 @@ dotnet add package FaultLens.SDK
 To pin an explicit version:
 
 ```powershell
-dotnet add package FaultLens.SDK --version 1.1.1
+dotnet add package FaultLens.SDK --version 1.2.0
 ```
 
 ## Quick Start
